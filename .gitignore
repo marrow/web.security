@@ -1,0 +1,30 @@
+*.py[co]
+
+# Packaging
+*.egg-info
+.eggs
+.packaging
+
+# Virtual Environment Pseudo-Chroot
+bin
+lib
+usr
+var
+include
+share
+tmp
+
+# Unit Test / Coverage Reports
+coverage.xml
+.coverage
+.tox
+.cagoule.db
+.cache/
+htmlcov/
+
+# Mac
+.DS_Store
+
+# Completion Integration
+.ropeproject
+
