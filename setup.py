@@ -91,6 +91,7 @@ setup(
 	
 	setup_requires = [
 			'pytest-runner',
+			'setuptools_scm',
 		] if {'pytest', 'test', 'ptr'}.intersection(sys.argv) else [],
 	install_requires = [
 			'WebCore>=2.0.9,<2.2.0',  # Web framework.
