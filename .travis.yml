@@ -16,6 +16,7 @@ python:
 
 install:
   - travis_retry pip install --upgrade setuptools pip pytest pytest-cov codecov
+  - pip install -e 'git+https://github.com/marrow/webcore.git@develop#egg=WebCore-2.1.0'
   - pip install -e '.[development]'
 
 script:
