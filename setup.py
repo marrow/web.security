@@ -31,6 +31,7 @@ tests_require = [
 		'pytest-capturelog',  # log capture
 		'pytest-spec',  # output formatting
 		'WebCore',  # request mocking
+		'web.dispatch.object',  # endpoint discovery
 	]
 
 
