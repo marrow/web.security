@@ -1,13 +1,27 @@
 # encoding: utf-8
 
-"""User authentication hooks for WebCore applications.
+"""Authentication Extension
+
+User authentication hooks for WebCore applications.
+
+* This extension is **available in**: `web.security>=2.1.0,<2.2.0`
+* This extension has **no external package dependencies or language requirements**.
+* This extension is **available with the name** `auth`, 'authn', or 'authentication' in the `web.ext` namespace.
+* This extension adds the following **context attributes**:
+	* `authenticate`
+	* `deauthenticate`
+* This extension uses **namespaced plugins** from:
+	* `web.auth.lookup`
+	* `web.auth.authenticate`
 
 # Introduction
 
+This extension 
 
 
 ## Operation
 
+This extension provides a method of performing modular user authentication.
 
 
 # Usage
@@ -75,9 +89,9 @@ class AuthExtension(object):
 		The `name` represents the name of the active user object within the context. The `session` argument represents
 		the session attribute to use to store the active user ID after successful authentication. If defined, the set
 		of HTTP status code integers to intercept and redirect to the `handler` are passed as `intercept`. If the
-		application attempts to return a response matching one of those status codes, the user will instead be directed
-		to the authentication handler URL. If `internal` is truthy that redirection will not be visible to the user,
-		instead, returning the authentication page as the response body to the intercepted status integer.
+		application attempts to return a response matching one of those status codes, the user will instead be
+		directed to the authentication handler URL. If `internal` is truthy that redirection will not be visible to
+		the user, instead, returning the authentication page as the response body to the intercepted status integer.
 		
 		The guts of the machinery are the `lookup` and `authenticate` callbacks, which should either be references to
 		callables within your code (or library code) or string dot-colon references to the same or a plugin name.
