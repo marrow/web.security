@@ -99,6 +99,8 @@ setup(
 	
 	extras_require = dict(
 			development = tests_require,
+			ecdsa = ['ecdsa'],
+			fastecdsa = ['fastecdsa>=1.0.3'],
 		),
 	
 	tests_require = tests_require,
