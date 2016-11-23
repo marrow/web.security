@@ -56,7 +56,7 @@ application:
 
 from __future__ import unicode_literals
 
-from functools import partial
+from functools import partialmethod
 
 from webob.exc import HTTPTemporaryRedirect
 from marrow.package.loader import load
@@ -134,8 +134,8 @@ class AuthExtension(object):
 			context[self._name] = None
 		
 		# TODO: context.user = lazy(...)
-		context.authenticate = lazy(partial(partial, self.authenticate), 'authenticate')
-		context.deauthenticate = lazy(partial(partial, self.deauthenticate), 'deauthenticate')
+		context.authenticate = lazy(partialmethod(partialmethod, self.authenticate), 'authenticate')
+		context.deauthenticate = lazy(partialmethod(partialmethod, self.deauthenticate), 'deauthenticate')
 	
 	# Request-Level Callbacks
 	
