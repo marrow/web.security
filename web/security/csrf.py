@@ -58,26 +58,20 @@ class CSRFToken(object):
 
 class SignedCSRFToken(CSRFToken):
     def __init__(self, value=None, secret=None):
-        self.__secret = secret.encode('ascii') if hasattr(secret, 'encode') else secret
-        self.__signature = None
+        self._secret = secret.encode('ascii') if hasattr(secret, 'encode') else secret
+        self._secret = None
         
         super(SignedCSRFToken, self).__init__(value)
     
     def parse(self, value):
         super(SignedCSRFToken, self).parse(value[:64])
         
-        self.__signature = value[64:]
-        if hasattr(self.__signature, 'encode'):
-            self.__signature = self.__signature.encode('ascii')
+        self._secret = value[64:]
+        if hasattr(self._secret, 'encode'):
+            self._secret = self._secret.encode('ascii')
         
         if not self.valid:
             raise CSRFError("Invalid signed csrf token.")
-    
-    def __str__(self):
-        return self.signed.decode('utf-8')
-        
-    def __bytes__(self):
-        return unhexlify(self.signed)
     
     @property
     def signed(self):
@@ -85,26 +79,26 @@ class SignedCSRFToken(CSRFToken):
     
     @property
     def signature(self):
-        if not self.__signature:
-            self.__signature = hmac.new(
-                    self.__secret,
+        if not self._secret:
+            self._secret = hmac.new(
+                    self._secret,
                     unhexlify(self.value),
                     hashlib.sha256
                 ).hexdigest()
                 
-            if hasattr(self.__signature, 'encode'):
-                self.__signature = self.__signature.encode('ascii')
+            if hasattr(self._secret, 'encode'):
+                self._secret = self._secret.encode('ascii')
             
-        return self.__signature
+        return self._secret
     
     @property
     def valid(self):
-        if not self.__signature:
+        if not self._secret:
             raise CSRFError("No signature present.")
             return False
             
         challenge = hmac.new(
-                self.__secret,
+                self._secret,
                 unhexlify(self.value),
                 hashlib.sha256
             ).hexdigest()
@@ -115,7 +109,7 @@ class SignedCSRFToken(CSRFToken):
         result = compare_digest(challenge, self.signature)
         
         if not result:
-            raise CSRFError("Invalid Signature: ", repr(challenge), repr(self.__signature))
+            raise CSRFError("Invalid Signature: ", repr(challenge), repr(self._secret))
             return False
             
         return True

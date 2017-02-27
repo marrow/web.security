@@ -33,10 +33,10 @@ class CSRFHandler(object):
         return SignedCSRFToken(secret=self.user_secret.value)
     
     def __str__(self):
-        return str(self._generate())
+        return self._generate().signed.decode('utf-8')
         
     def __bytes__(self):
-        return bytes(self._generate())
+        return unhexlify(self._generate().signed)
         
     @property
     def user_secret(self):
