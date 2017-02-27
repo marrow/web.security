@@ -1,6 +1,8 @@
+# encoding: utf-8
+
 import hashlib, hmac
 
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 from os import urandom
 
 from web.core.util import lazy
@@ -11,26 +13,61 @@ log = __import__('logging').getLogger(__name__)
 
 
 class CSRFHandler(object):
-    __slots__ = ('_ctx')
+    __slots__ = ('_ctx', 'ext')
     
-    def __init__(self, context):
+    def __init__(self, context, csrf_ext):
         self._ctx = context
+        self.ext = csrf_ext
     
-    def _get_user_secret(self):
-        return self._ctx.user_csrf.__str__()
-    
-    def verify(self, token):
+    def __call__(self, token):
+        if len(token) != 128:
+            return False
+        
         try:
-            SignedCSRFToken(value=token, secret=self._get_user_secret())
+            SignedCSRFToken(token, secret=self.user_secret.value)
         except CSRFError:
             return False
         return True
     
-    def generate_token(self):
-        return SignedCSRFToken(secret=self._get_user_secret())
+    def _generate(self):
+        return SignedCSRFToken(secret=self.user_secret.value)
     
     def __str__(self):
-        return self.generate_token().signed.decode('utf-8')
+        return str(self._generate())
+        
+    def __bytes__(self):
+        return bytes(self._generate())
+        
+    @property
+    def user_secret(self):
+        context = self._ctx
+        token = None
+        try:
+            if self.ext.cookie:
+                cookie = context.request.cookies.get(self.ext.cookie['name'], None)
+                if cookie: token = SignedCSRFToken(cookie, secret=self.ext._secret)
+            else:
+                token = context.session.csrf
+        except CSRFError:
+            log.warn("Could not verify CSRF cookie, generating new token", extra=dict(cookie=cookie))
+        except AttributeError:
+            log.warn("Could retrieve user CSRF token from session, generating new token")
+        
+        if token:
+            return token
+        log.warn("No token, generating new one")
+            
+        token = SignedCSRFToken(secret=self.ext._secret) if self.ext.cookie else CSRFToken()
+            
+        if self.ext.cookie:
+            context.response.set_cookie(
+                    value=token.signed,
+                    **self.ext.cookie
+                )
+        else:
+            context.session.csrf = token
+        
+        return token
 
 
 class CSRFExtension(object):
@@ -51,14 +88,14 @@ class CSRFExtension(object):
         `secret` is used to generate an HMAC signature of the random user token when using cookies. 
         The `secret` is not required when using session based storage.
         """
-        if cookie is None and secret is None:
+        if cookie is not None and secret is None:
             if not __debug__:
                 raise ValueError("A secret must be defined in production environments when using cookie storage.")
                 
             secret = hexlify(urandom(64)).decode('ascii')
             log.warn("Generating temporary csrf secret", extra=dict(secret=secret))
                 
-        self.__secret = secret
+        self._secret = secret
         
         if cookie: # We are going to use cookie storage
             self.needs = {'request'}
@@ -69,39 +106,9 @@ class CSRFExtension(object):
             self.needs = {'session'}
             self.cookie = None
     
-    def get_user_csrf(self, context):
-        token = None
-        cookie = ""
-        try:
-            if self.cookie:
-                cookie = context.request.cookies.get(self.cookie['name'], None)
-                if cookie: token = SignedCSRFToken(cookie, secret=self.__secret)
-            else:
-                token = CSRFToken(context.session.csrf) 
-        except CSRFError:
-            log.warn("Could not verify CSRF cookie, generating new token", extra=dict(cookie=cookie))
-        except AttributeError:
-            log.warn("Could retrieve user CSRF token from session, generating new token")
-        
-        if token:
-            return token
-        
-        context.user_csrf_new = True    
-        return SignedCSRFToken(secret=self.__secret) if self.cookie else CSRFToken()
+    def create_handler(self, context):
+        return CSRFHandler(context,self)
     
     def start(self, context):
-        context.user_csrf = lazy(self.get_user_csrf, 'user_csrf')
-    
-    def prepare(self, context):
-        context.csrf = CSRFHandler(context=context)
-    
-    def after(self, context):
-        if hasattr(context, 'user_csrf_new'):
-            if self.cookie:
-                context.response.set_cookie(
-                        value=context.user_csrf.signed,
-                        **self.cookie
-                    )
-            else:
-                context.session.csrf = context.user_csrf.__str__()
+        context.csrf = lazy(self.create_handler, 'csrf')
         

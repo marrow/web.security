@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 import hashlib, hmac
 from os import urandom
 from binascii import hexlify, unhexlify
@@ -26,7 +28,7 @@ class CSRFPasses(Predicate):
         if context.request.method in ('POST', 'PUT', 'DELETE'):
             # Probably need to make the var name configurable somehow
             token = context.request.POST['csrftoken']
-            return context.csrf.verify(token)
+            return context.csrf(token)
         return True
 
 
@@ -71,6 +73,12 @@ class SignedCSRFToken(CSRFToken):
         if not self.valid:
             raise CSRFError("Invalid signed csrf token.")
     
+    def __str__(self):
+        return self.signed.decode('utf-8')
+        
+    def __bytes__(self):
+        return unhexlify(self.signed)
+    
     @property
     def signed(self):
         return self.value + self.signature
@@ -80,7 +88,7 @@ class SignedCSRFToken(CSRFToken):
         if not self.__signature:
             self.__signature = hmac.new(
                     self.__secret,
-                    self.__bytes__(),
+                    unhexlify(self.value),
                     hashlib.sha256
                 ).hexdigest()
                 
@@ -97,7 +105,7 @@ class SignedCSRFToken(CSRFToken):
             
         challenge = hmac.new(
                 self.__secret,
-                self.__bytes__(),
+                unhexlify(self.value),
                 hashlib.sha256
             ).hexdigest()
             
