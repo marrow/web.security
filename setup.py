@@ -86,6 +86,7 @@ setup(
 					'any = web.security.predicate:any',
 					'matches = web.security.predicate:ContextMatch',
 					'contains = web.security.predicate:ContextContains',
+					'csrf_passes = web.security.csrf:csrf_predicate',
 				],
 		},
 	
