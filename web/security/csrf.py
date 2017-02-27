@@ -18,12 +18,16 @@ class CSRFError(ValueError):
 	pass
 
 
-def csrf_predicate(context):
-    if context.request.method in ('POST', 'PUT', 'DELETE'):
-        # Probably need to make the var name configurable somehow
-        token = context.request.POST['csrftoken']
-        return context.csrf.verify(token)
-    return True
+class CSRFPasses(Predicate):
+    def __init__(self, *predicates):
+        pass
+    
+    def __call__(self, context):
+        if context.request.method in ('POST', 'PUT', 'DELETE'):
+            # Probably need to make the var name configurable somehow
+            token = context.request.POST['csrftoken']
+            return context.csrf.verify(token)
+        return True
 
 
 class CSRFToken(object):
