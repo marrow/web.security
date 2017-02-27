@@ -13,33 +13,37 @@ log = __import__('logging').getLogger(__name__)
 
 
 class CSRFHandler(object):
-    __slots__ = ('_ctx', 'ext')
+    __slots__ = ('_ctx', 'ext', '_user_secret')
     
     def __init__(self, context, csrf_ext):
         self._ctx = context
         self.ext = csrf_ext
+        self._user_secret = None
     
     def __call__(self, token):
         if len(token) != 128:
             return False
         
         try:
-            SignedCSRFToken(token, secret=self.user_secret.value)
+            SignedCSRFToken(token, secret=str(self.user_secret))
         except CSRFError:
             return False
         return True
     
     def _generate(self):
-        return SignedCSRFToken(secret=self.user_secret.value)
+        return SignedCSRFToken(secret=str(self.user_secret))
     
     def __str__(self):
         return self._generate().signed.decode('utf-8')
         
     def __bytes__(self):
         return unhexlify(self._generate().signed)
-        
+    
     @property
     def user_secret(self):
+        if self._user_secret:
+            return self._user_secret
+        
         context = self._ctx
         token = None
         try:
@@ -53,20 +57,18 @@ class CSRFHandler(object):
         except AttributeError:
             log.warn("Could retrieve user CSRF token from session, generating new token")
         
-        if token:
-            return token
-        log.warn("No token, generating new one")
+        if not token:
+            token = SignedCSRFToken(secret=self.ext._secret) if self.ext.cookie else CSRFToken()
             
-        token = SignedCSRFToken(secret=self.ext._secret) if self.ext.cookie else CSRFToken()
-            
-        if self.ext.cookie:
-            context.response.set_cookie(
-                    value=token.signed,
-                    **self.ext.cookie
-                )
-        else:
-            context.session.csrf = token
+            if self.ext.cookie:
+                context.response.set_cookie(
+                        value=token.signed,
+                        **self.ext.cookie
+                    )
+            else:
+                context.session.csrf = token
         
+        self._user_secret = token
         return token
 
 

@@ -56,19 +56,20 @@ class CSRFToken(object):
     def __bytes__(self):
         return unhexlify(self.value)
 
+
 class SignedCSRFToken(CSRFToken):
     def __init__(self, value=None, secret=None):
         self._secret = secret.encode('ascii') if hasattr(secret, 'encode') else secret
-        self._secret = None
+        self._signature = None
         
         super(SignedCSRFToken, self).__init__(value)
     
     def parse(self, value):
         super(SignedCSRFToken, self).parse(value[:64])
         
-        self._secret = value[64:]
-        if hasattr(self._secret, 'encode'):
-            self._secret = self._secret.encode('ascii')
+        self._signature = value[64:]
+        if hasattr(self._signature, 'encode'):
+            self._signature = self._signature.encode('ascii')
         
         if not self.valid:
             raise CSRFError("Invalid signed csrf token.")
@@ -79,21 +80,21 @@ class SignedCSRFToken(CSRFToken):
     
     @property
     def signature(self):
-        if not self._secret:
-            self._secret = hmac.new(
+        if not self._signature:
+            self._signature = hmac.new(
                     self._secret,
                     unhexlify(self.value),
                     hashlib.sha256
                 ).hexdigest()
                 
-            if hasattr(self._secret, 'encode'):
-                self._secret = self._secret.encode('ascii')
+            if hasattr(self._signature, 'encode'):
+                self._signature = self._signature.encode('ascii')
             
-        return self._secret
+        return self._signature
     
     @property
     def valid(self):
-        if not self._secret:
+        if not self._signature:
             raise CSRFError("No signature present.")
             return False
             
@@ -109,7 +110,7 @@ class SignedCSRFToken(CSRFToken):
         result = compare_digest(challenge, self.signature)
         
         if not result:
-            raise CSRFError("Invalid Signature: ", repr(challenge), repr(self._secret))
+            raise CSRFError("Invalid Signature: ", repr(challenge), repr(self._signature))
             return False
             
         return True
