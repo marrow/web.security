@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 """A _predicate_ is any callable object that optionally accepts a context as its first positional parameter.
 
 One might look like:
@@ -52,21 +50,12 @@ This allows you to easily compare against containers such as lists and sets. Als
 "partially apply" a predicate, that is, apply some arguments, then apply the rest later.
 """
 
-from __future__ import unicode_literals
-
 from functools import partial
 
 from marrow.package.loader import traverse
 
 
-if __debug__:  # Documentation helpers.
-	__doc_groups__ = {  # Map collapsable sections.
-				'Context Value Matches': {'sample', 'captioned'},
-				'Context Value Contains': {'sample', 'captioned'},
-			}
-
-
-class Predicate(object):
+class Predicate:
 	__slots__ = ()
 	
 	def __call__(self, context=None):
@@ -268,4 +257,3 @@ class ContextContains(ContextMatch):
 		result = any(i in value for i in self.values)
 		
 		return self.grant if result else None
-

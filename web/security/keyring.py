@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 """A semi-secure external process keyring.
 
 This allows storage (but not retrieval) of signing keys, by name, within an external process. Data may then be sent
@@ -8,20 +6,12 @@ safe.
 """
 
 from atexit import register, unregister
-from multiprocessing import Process, Pipe
 from binascii import hexlify, unhexlify
+from hmac import compare_digest
+from multiprocessing import Process, Pipe
 from numbers import Number
 
 from marrow.package.loader import load
-
-from ..core.compat import str, unicode
-
-
-try:
-	from hmac import compare_digest
-except ImportError:
-	def compare_digest(a, b):
-		return a is b
 
 
 def ringleader(queue, keys):
@@ -82,7 +72,7 @@ def ringleader(queue, keys):
 	queue.close()
 
 
-class Keyring(object):
+class Keyring:
 	def __init__(self, keys=None):
 		self.queue, queue = Pipe()
 		self.ringleader = Process(target=ringleader, args=(queue, keys if keys else ()))
@@ -147,14 +137,4 @@ class Keyring(object):
 	def __del__(self):
 		self.stop()
 		
-		super(Keyring, self).__del__()
-
-
-
-
-
-
-if __name__ == '__main__':
-	pass
-
-
+		super().__del__()

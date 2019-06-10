@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 """Authentication Extension
 
 User authentication hooks for WebCore applications.
@@ -54,8 +52,6 @@ application:
 
 """
 
-from __future__ import unicode_literals
-
 from functools import partialmethod
 
 from webob.exc import HTTPTemporaryRedirect
@@ -65,16 +61,10 @@ from ..core.compat import unicode, str
 from ..core.util import lazy
 
 
-if __debug__:  # Documentation helpers.
-	__doc_groups__ = {  # Map collapsable sections.
-				'Imperative Configuration': {'config', 'choice'},
-				'Declarative Configuration': {'config', 'choice'},
-			}
-
 log = __import__('logging').getLogger(__name__)
 
 
-class AuthExtension(object):
+class AuthExtension:
 	"""User authentication extension.
 	"""
 	
@@ -100,6 +90,8 @@ class AuthExtension(object):
 		The `name` provided may be `None`, indicating pure access to the logged in user's identity through the
 		session.
 		"""
+		
+		super().__init__()
 		
 		# Authentication data storage configuration.
 		self._name = name
@@ -215,4 +207,3 @@ class AuthExtension(object):
 			container = getattr(container, segment)
 		
 		setattr(container, target, value)
-

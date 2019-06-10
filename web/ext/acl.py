@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 """Access Control List Security Extension
 
 Predicate-based security for your applications, extensions, and reusable components.
@@ -200,31 +198,20 @@ def endpoint(context):
 In this example, `Thing` will not allow itself to be returned by an endpoint. This process is not recursive.
 """
 
-from __future__ import unicode_literals
-
 from itertools import chain
 from inspect import isclass
+from pathlib import PurePosixPath as Path
 
 from webob.exc import HTTPForbidden
 
 from ..core.util import safe_name
-from ..core.compat import Path
 from ..security import ACL, when
 
-
-if __debug__:  # Documentation helpers.
-	__doc_groups__ = {  # Map collapsable sections.
-				'Imperative Configuration': {'config', 'choice'},
-				'Declarative Configuration': {'config', 'choice'},
-				'Explicit Usage': {'sample', 'captioned'},
-				'Decoration': {'sample', 'captioned'},
-				'Endpoint Return Values': {'sample', 'captioned'},
-			}
 
 log = __import__('logging').getLogger(__name__)
 
 
-class ACLExtension(object):
+class ACLExtension:
 	"""Access control list extension.
 	
 	Predicates are gathered as dispatch descends through objects, collecting them from the `__acl__` attribute.
@@ -235,18 +222,13 @@ class ACLExtension(object):
 	extensions = {'web.security.predicate'}
 	context = {'acl'}
 	
-	def __init__(self, *_policy, **kw): # Python 3: , default=None, policy=None):
+	def __init__(self, *_policy, default=None, policy=None):
 		"""Configure the ACL extension by defining an optional base policy.
 		
 		This policy will be used as the base for every request; these are evaluated first, always.
 		"""
 		
-		default = kw.pop('default', None)
-		policy = kw.pop('policy', None)
-		
-		if __debug__:
-			if kw:  # This is the only keyword argument we accept.
-				raise TypeError("Unknown keyword arguments: " + ", ".join(sorted(kw)))
+		super().__init__()
 		
 		if policy is None:
 			policy = []
@@ -264,8 +246,6 @@ class ACLExtension(object):
 		
 		log.info("ACL extension prepared with defualt policy: " + repr(policy))
 	
-	# ### Request-Level Callbacks
-	
 	def prepare(self, context):
 		"""Called to prepare the request context by adding an `acl` attribute."""
 		
@@ -274,7 +254,7 @@ class ACLExtension(object):
 		
 		context.acl = ACL(context=context, policy=self.policy)
 	
-	def dispatch(self, context, consumed, handler, is_endpoint):
+	def dispatch(self, context, crumb):
 		"""Called as dispatch descends into a tier.
 		
 		The ACL extension uses this to build up the current request's ACL.
@@ -284,11 +264,11 @@ class ACLExtension(object):
 		inherit = getattr(handler, '__acl_inherit__', True)
 		
 		if __debug__:
-			log.debug("Handling dispatch event: " + repr(handler) + " " + repr(acl), extra=dict(
+			log.debug(f"Handling dispatch event: {handler!r} {acl!r}", extra=dict(
 					request = id(context),
-					consumed = consumed,
-					handler = safe_name(handler),
-					endpoint = is_endpoint,
+					consumed = crumb.path,
+					handler = safe_name(crumb.handler),
+					endpoint = crumb.endpoint,
 					acl = [repr(i) for i in acl],
 					inherit = inherit,
 				))
@@ -354,4 +334,3 @@ class ACLExtension(object):
 				))
 		
 		return result
-

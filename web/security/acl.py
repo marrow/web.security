@@ -1,8 +1,4 @@
-# encoding: utf-8
-
 """ACL evaluation result and ACL abstractions."""
-
-from __future__ import unicode_literals
 
 from weakref import proxy
 from itertools import chain
@@ -28,14 +24,14 @@ class ACLResult(object):
 
 class ACL(list):
 	def __init__(self, *rules, **kw): # Python 3: , context=None, policy=None):
-		super(ACL, self).__init__((None, rule, None) for rule in rules)
+		super().__init__((None, rule, None) for rule in rules)
 		
 		context = kw.pop('context', None)
 		policy = kw.pop('policy', None)
 		
 		if __debug__:
 			if kw:  # This is the only keyword argument we accept.
-				raise TypeError("Unknown keyword arguments: " + ", ".join(sorted(kw)))
+				raise TypeError(f"Unknown keyword arguments: {', '.join(sorted(kw))}")
 		
 		self.context = proxy(context) if context else None
 		self.policy = policy or ()
@@ -61,8 +57,7 @@ class ACL(list):
 	__nonzero__ = __bool__
 	
 	def __iter__(self):
-		return chain(super(ACL, self).__iter__(), ((None, i, None) for i in self.policy))
+		return chain(super().__iter__(), ((None, i, None) for i in self.policy))
 	
 	def __repr__(self):
 		return '[' + ', '.join(repr(i) for i in self) + ']'
-

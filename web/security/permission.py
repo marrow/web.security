@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 """Tag-based permission or role-based authroization support."""
 
 from weakref import proxy
@@ -99,4 +97,3 @@ class Permissions:
 	def __iter__(self):
 		if not self.unpacked: self._unpack()
 		return iter(sorted(self.permissions))
-

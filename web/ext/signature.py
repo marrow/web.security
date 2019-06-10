@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 from ..security.keyring import Keyring
 
 
@@ -16,4 +14,3 @@ class SignatureExtension(object):
 	def stop(self, context):
 		del context.signature
 		self.keyring.stop()
-

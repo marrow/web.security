@@ -1,28 +1,17 @@
-# encoding: utf-8
-
-from __future__ import unicode_literals
-
 from hashlib import md5, sha256
 from hmac import new as hmac
 from binascii import unhexlify
+from hmac import compare_digest
 from os import getpid
 from socket import gethostname
 from time import time
 from random import randint
 from threading import RLock
 
-from web.core.compat import py3, str, unicode
-
-try:
-	from hmac import compare_digest
-except ImportError:
-	def compare_digest(a, b):
-		return a == b
-
 
 log = __import__('logging').getLogger(__name__)
 
-MACHINE = int(md5(gethostname().encode() if py3 else gethostname()).hexdigest()[:6], 16)
+MACHINE = int(md5(gethostname().encode()).hexdigest()[:6], 16)
 
 
 class SignatureError(ValueError):
@@ -68,34 +57,31 @@ class SessionIdentifier(object):
 		self.process = getpid() % 0xFFFF
 		self.counter = next(counter)
 	
-	def __str__(self):
-		return self.__unicode__().encode('ascii')
+	def __bytes__(self):
+		return str(self).encode('ascii')
 	
-	def __unicode__(self):
-		return "{self.time:08x}{self.machine:06x}{self.process:04x}{self.counter:06x}".format(self=self)
+	def __str__(self):
+		return f"{self.time:08x}{self.machine:06x}{self.process:04x}{self.counter:06x}"
 	
 	def __repr__(self):
-		return "{self.__class__.__name__}('{self}')".format(self=self)
-	
-	if py3:
-		__bytes__ = __str__
-		__str__ = __unicode__
+		return f"{self.__class__.__name__}('{self}')"
 
 
 class SignedSessionIdentifier(SessionIdentifier):
 	__slots__ = ('__secret', '__signature', 'expires')
+	
 	def __init__(self, value=None, secret=None, expires=None):
 		self.__secret = secret.encode('ascii') if hasattr(secret, 'encode') else secret
 		self.__signature = None
 		self.expires = expires
 		
-		super(SignedSessionIdentifier, self).__init__(value)
+		super().__init__(value)
 	
 	def parse(self, value):
 		if len(value) != 88:
 			raise SignatureError("Invalid signed identifier length.")
 		
-		super(SignedSessionIdentifier, self).parse(value)
+		super().parse(value)
 		
 		self.__signature = value[24:].encode('ascii')
 		
@@ -146,4 +132,3 @@ class SignedSessionIdentifier(SessionIdentifier):
 			return False
 		
 		return True
-

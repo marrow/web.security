@@ -1,8 +1,4 @@
-# encoding: utf-8
-
 """Plugin manager and decorator for accessing predicates and defining access control lists."""
-
-from __future__ import unicode_literals
 
 from marrow.package.host import PluginManager
 
@@ -32,4 +28,3 @@ class _When(PluginManager):
 		return acl_when_inner
 
 when = _When('web.security.predicate')  # Easy reference by short name, e.g. when.match(...)
-

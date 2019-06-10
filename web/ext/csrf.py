@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 """Cross-Site Request Forgery (CSRF) Extension
 
 Provide a session-backed or cryptographic token to secure forms from malicious access.
@@ -81,8 +79,6 @@ application:
 ```
 """
 
-from __future__ import unicode_literals
-
 from weakref import proxy
 from functools import partial
 from hashlib import sha256
@@ -103,7 +99,7 @@ if __debug__:  # Documentation helpers.
 log = __import__('logging').getLogger(__name__)
 
 
-class CSRF(object):
+class CSRF:
 	"""Cross-site request forgery protections implementation.
 	
 	This provides an object meant to be used as a context attribute in association with the `CSRFExtension`.
@@ -134,6 +130,9 @@ class CSRF(object):
 		provided.
 		
 		"""
+		
+		super().__init__()
+		
 		self._csrf = extension
 		self._ctx = proxy(context)
 		self.exempt = False
@@ -153,8 +152,7 @@ class CSRF(object):
 		
 		return self._new_session()
 	
-	__unicode__ = __call__  # Generate a token if used as a string.
-	if py3: __str__ = __unicode__  # Adapt to Python 3 semantics.
+	__str__ = __call__  # Generate a token if used as a string.
 	
 	def __nonzero__(self):
 		"""Permit simple boolean evaluation of the `context.csrf` value to determine validation state."""
@@ -308,4 +306,3 @@ class CSRFExtension(object):
 		
 		if not self.mask:
 			kw[self.argument] = context.csrf
-
