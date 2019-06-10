@@ -7,12 +7,12 @@ branches:
       - /^[^/]+/.+$/
 
 python:
-  - "2.7"
-  - "pypy"
-  - "pypy3"
-  - "3.4"
-  - "3.5"
   - "3.6"
+
+matrix:
+  include:
+    - python: "3.7"
+      dist: xenial
 
 install:
   - travis_retry pip install --upgrade setuptools pip pytest pytest-cov codecov
@@ -37,4 +37,3 @@ notifications:
     template:
       - "%{repository_slug}:%{branch}@%{commit} %{message}"
       - "Duration: %{duration} - Details: %{build_url}"
-
