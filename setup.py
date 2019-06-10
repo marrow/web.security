@@ -65,7 +65,7 @@ setup(
 			"Topic :: Software Development :: Libraries :: Python Modules",
 		],
 	
-	packages = ('web.ext', 'web.security'),
+	packages = ('web.ext', 'web.security', 'web.signature'),
 	include_package_data = True,
 	package_data = {'': ['README.rst', 'LICENSE.txt']},
 	zip_safe = False,
