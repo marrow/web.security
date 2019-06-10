@@ -1,35 +1,22 @@
-#!/usr/bin/env python
-# encoding: utf-8
+#!/usr/bin/env python3
 
-from __future__ import print_function
-
-import os
-import sys
-import codecs
+from setuptools import setup
+from sys import argv, version_info as python_version
+from pathlib import Path
 
 
-try:
-	from setuptools.core import setup, find_packages
-except ImportError:
-	from setuptools import setup, find_packages
+if python_version < (3, 6):
+	raise SystemExit("Python 3.6 or later is required.")
 
-
-if sys.version_info < (2, 7):
-	raise SystemExit("Python 2.7 or later is required.")
-elif sys.version_info > (3, 0) and sys.version_info < (3, 2):
-	raise SystemExit("Python 3.2 or later is required.")
-
-version = description = url = author = None
-exec(open(os.path.join("web", "security", "release.py")).read())
-
-here = os.path.abspath(os.path.dirname(__file__))
+here = Path(__file__).resolve().parent
+version = description = url = author = None  # Populated by the next line.
+exec((here / "web" / "security" / "release.py").read_text('utf-8'))
 
 tests_require = [
 		'pytest',  # test collector and extensible runner
 		'pytest-cov',  # coverage reporting
 		'pytest-flakes',  # syntax validation
-		'pytest-capturelog',  # log capture
-		'pytest-spec',  # output formatting
+		'pytest-isort',  # import ordering
 		'WebCore',  # request mocking
 		'web.dispatch.object',  # endpoint discovery
 	]
@@ -38,14 +25,29 @@ tests_require = [
 setup(
 	name = "web.security",
 	version = version,
+	
 	description = description,
-	long_description = codecs.open(os.path.join(here, 'README.rst'), 'r', 'utf8').read(),
+	long_description = (here / 'README.rst').read_text('utf-8'),
 	url = url,
 	download_url = 'https://github.com/marrow/web.security/releases',
+	
 	author = author.name,
 	author_email = author.email,
+
 	license = 'MIT',
-	keywords = ['web.security', 'WebCore', 'ACL', 'CSRF', 'authentication', 'authorization', 'authn', 'authz', 'a12n', 'a11n'],
+	keywords = [
+			'web.security',
+			'WebCore',
+			'ACL',
+			'CSRF',
+			'CORS',
+			'authentication',
+			'authorization',
+			'authn',
+			'authz',
+			'a12n',
+			'a11n'
+		],
 	classifiers = [
 			"Development Status :: 5 - Production/Stable",
 			"Environment :: Console",
@@ -54,24 +56,36 @@ setup(
 			"License :: OSI Approved :: MIT License",
 			"Operating System :: OS Independent",
 			"Programming Language :: Python",
-			"Programming Language :: Python :: 2",
-			"Programming Language :: Python :: 2.7",
 			"Programming Language :: Python :: 3",
-			"Programming Language :: Python :: 3.2",
-			"Programming Language :: Python :: 3.3",
-			"Programming Language :: Python :: 3.4",
-			"Programming Language :: Python :: 3.5",
+			"Programming Language :: Python :: 3.6",
+			"Programming Language :: Python :: 3.7",
+			"Programming Language :: Python :: 3.8",
 			"Programming Language :: Python :: Implementation :: CPython",
 			"Programming Language :: Python :: Implementation :: PyPy",
 			"Topic :: Software Development :: Libraries :: Python Modules",
 		],
 	
-	packages = find_packages(exclude=['example', 'test']),
+	packages = ('web.ext', 'web.security'),
 	include_package_data = True,
-	namespace_packages = [
-			'web',  # primary namespace
-			'web.ext',  # framework extensions
+	package_data = {'': ['README.rst', 'LICENSE.txt']},
+	zip_safe = False,
+	
+	setup_requires = [
+			'pytest-runner',
+		] if {'pytest', 'test', 'ptr'}.intersection(argv) else [],
+	
+	install_requires = [
+			'WebCore~=3.0.0',  # Web framework.
+			'marrow.package~=2.0',  # Plugin management.
 		],
+	
+	extras_require = dict(
+			development = tests_require + ['pre-commit'],
+			ecdsa = ['ecdsa'],
+			fastecdsa = ['fastecdsa>=1.0.3'],
+		),
+	
+	tests_require = tests_require,
 	
 	entry_points = {
 			'web.extension': [
@@ -88,22 +102,4 @@ setup(
 					'contains = web.security.predicate:ContextContains',
 				],
 		},
-	
-	setup_requires = [
-			'pytest-runner',
-		] if {'pytest', 'test', 'ptr'}.intersection(sys.argv) else [],
-	install_requires = [
-			'WebCore>=2.0.3,<2.2.0',  # Web framework.
-			'marrow.package>=1.2,<1.3',  # Plugin management.
-		],
-	
-	extras_require = dict(
-			development = tests_require,
-			ecdsa = ['ecdsa'],
-			fastecdsa = ['fastecdsa>=1.0.3'],
-		),
-	
-	tests_require = tests_require,
-	
-	zip_safe = True,
 )
