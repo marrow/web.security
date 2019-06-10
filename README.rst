@@ -2,7 +2,7 @@
 web.security
 ============
 
-    © 2009-2016 Alice Bevan-McGregor and contributors.
+    © 2009-2019 Alice Bevan-McGregor and contributors.
 
 ..
 
@@ -68,17 +68,15 @@ and submit a pull request.  This process is beyond the scope of this documentati
 `GitHub's documentation <http://help.github.com/>`_.
 
 
-
-
-
-
-
-
-
-
-
 Version History
 ===============
+
+Version 3.0
+-----------
+
+* **Updated minimum Python version.** Marrow Package now requires Python 3.6 or later.
+
+* **Removed Python 2 support and version specific code.** The project has been updated to modern Python packaging standards, including modern namespace use. Modern namespaces are wholly incompatible with the previous namespacing mechanism; this project can not be simultaneously installed with any Marrow project that is Python 2 compatible.
 
 Version 2.0
 -----------
@@ -102,7 +100,7 @@ web.security has been released under the MIT Open Source license.
 The MIT License
 ---------------
 
-Copyright © 2009-2016 Alice Bevan-McGregor and contributors.
+Copyright © 2009-2019 Alice Bevan-McGregor and contributors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 documentation files (the “Software”), to deal in the Software without restriction, including without limitation the
