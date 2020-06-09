@@ -69,3 +69,14 @@ class PHPHeuristic(PathHeuristic):
 	
 	def __init__(self) -> None:
 		super().__init__(re(r'\.phps?($|/)'))
+
+
+class WordpressHeuristic(PathHeuristic):
+	"""Beyond attempts to access PHP scripts, more generally we can rapidly block Wordpress requests by string match.
+	
+	This is more efficient than the global PHPHeuristic and will additionally block any attempt to access _any_
+	resource below such a path, not just PHP scripts.
+	"""
+	
+	def __init__(self) -> None:
+		super().__init__('wordpress', 'wp', 'wp-admin', 'wp-includes', 'wlwmanifest.xml', 'xmlrpc.php')
