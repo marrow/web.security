@@ -59,3 +59,13 @@ class PathHeuristic(WAFHeuristic):
 		
 		if self.pattern and self.pattern.search(str(uri)):  # The slower choice below a complexity threshold.
 			raise HTTPClose()
+
+
+class PHPHeuristic(PathHeuristic):
+	"""A variant PathHeuristic looking for any path element with a '.php' or '.phps' filename extension.
+	
+	This is a Python web application.  Attempts to access any "PHP script" must, by definition, be fraudulent.
+	"""
+	
+	def __init__(self) -> None:
+		super().__init__(re(r'\.phps?($|/)'))
