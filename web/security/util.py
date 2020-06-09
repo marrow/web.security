@@ -1,12 +1,15 @@
-from hashlib import md5, sha256
-from hmac import new as hmac
 from binascii import unhexlify
+from hashlib import md5, sha256
 from hmac import compare_digest
+from hmac import new as hmac
 from os import getpid
-from socket import gethostname
-from time import time
 from random import randint
+from socket import getaddrinfo as _forward, gethostbyaddr as _reverse, gethostname, herror as DNSError
 from threading import RLock
+from time import time
+from typing import Optional, Set
+
+from cachetools.func import ttl_cache
 
 
 log = __import__('logging').getLogger(__name__)
@@ -18,7 +21,7 @@ class SignatureError(ValueError):
 	pass
 
 
-class Counter(object):
+class Counter:
 	def __init__(self):
 		self.value = randint(0, 2**24)
 		self.lock = RLock()
@@ -38,7 +41,47 @@ class Counter(object):
 counter = Counter()
 
 
-class SessionIdentifier(object):
+class DNS:
+	TTL_ENTRIES: int = 128
+	TTL_TIME: int = 60 * 60  # One hour.
+	
+	@staticmethod
+	@ttl_cache(maxsize=TTL_ENTRIES, ttl=TTL_TIME)
+	def resolve(host:str) -> Set[str]:
+		"""Perform a cached forward DNS lookup.
+		
+		Retrieves the full set of identified IP addresses associated with the DNS name. This does not use
+		`socket.gethostbyname` because there may be a pool of addresses associated with the rDNS name, not just one.
+		
+		Can generate statistics from live operation by calling the `cache_info` method:
+		
+			>>> DNS.resolve.cache_info()
+			CacheInfo(hits=28, misses=16, maxsize=128, currsize=16)
+		"""
+		
+		try:
+			return {resolution[4][0] for resolution in _forward(host, 80)}
+		except DNSError:
+			return set()
+	
+	@staticmethod
+	@ttl_cache(maxsize=TTL_ENTRIES, ttl=TTL_TIME)
+	def reverse(addr:str) -> Optional[str]:
+		"""Perform a cached reverse DNS lookup.
+		
+		Can generate statistics from live operation by calling the `cache_info` method:
+		
+			>>> DNS.reverse.cache_info()
+			CacheInfo(hits=28, misses=16, maxsize=128, currsize=16)
+		"""
+		
+		try:
+			return _reverse(addr)[0]
+		except DNSError:
+			return None
+
+
+class SessionIdentifier:
 	def __init__(self, value=None):
 		if value:
 			self.parse(value)
