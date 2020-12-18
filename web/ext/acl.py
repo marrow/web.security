@@ -249,8 +249,7 @@ class ACLExtension:
 	def prepare(self, context):
 		"""Called to prepare the request context by adding an `acl` attribute."""
 		
-		if __debug__:
-			log.debug("Preparing request context with ACL.", extra=dict(request=id(context)))
+		if __debug__: log.debug("Populating request context with ACL.", extra=dict(request=id(context)))
 		
 		context.acl = ACL(context=context, policy=self.policy)
 	
@@ -260,32 +259,27 @@ class ACLExtension:
 		The ACL extension uses this to build up the current request's ACL.
 		"""
 		
-		acl = getattr(handler, '__acl__', ())
-		inherit = getattr(handler, '__acl_inherit__', True)
+		acl = getattr(crumb.handler, '__acl__', ())
+		inherit = getattr(crumb.handler, '__acl_inherit__', True)
 		
-		if __debug__:
-			log.debug(f"Handling dispatch event: {handler!r} {acl!r}", extra=dict(
-					request = id(context),
-					consumed = crumb.path,
-					handler = safe_name(crumb.handler),
-					endpoint = crumb.endpoint,
-					acl = [repr(i) for i in acl],
-					inherit = inherit,
-				))
+		if __debug__: log.debug(f"Handling dispatch event: {crumb.handler!r} {acl!r}", extra=dict(
+				request = id(context),
+				consumed = crumb.path,
+				handler = safe_name(crumb.handler),
+				endpoint = crumb.endpoint,
+				acl = [repr(i) for i in acl],
+				inherit = inherit,
+			))
 		
 		if not inherit:
-			if __debug__:
-				log.debug("Clearing collected access control list.")
-			
+			if __debug__: log.info("Clearing collected access control list.")
 			del context.acl[:]
 		
 		context.acl.extend((Path(context.request.path), i, handler) for i in acl)
 	
-	def mutate(self, context, handler, args, kw):
+	def collect(self, context, handler, args, kw):
 		if not context.acl:
-			if __debug__:
-				log.debug("Skipping validation of empty ACL.", extra=dict(request=id(context)))
-			
+			if __debug__: log.debug("Skipping validation of empty ACL.", extra=dict(request=id(context)))
 			return
 		
 		grant = context.acl.is_authorized
@@ -300,8 +294,8 @@ class ACLExtension:
 			raise HTTPForbidden()
 		
 		elif __debug__:
-			log.debug("Successful endpoint authorization: " + repr(grant), extra=dict(
-					grant = False,
+			log.info("Successful endpoint authorization: " + repr(grant), extra=dict(
+					grant = True,
 					predicate = repr(grant.predicate) if grant.predicate else None,
 					path = str(grant.path) if grant.path else None,
 					source = safe_name(grant.source) if grant.source else None
@@ -326,7 +320,7 @@ class ACLExtension:
 			return HTTPForbidden()
 		
 		elif __debug__:
-			log.debug("Successful response authorization.", extra=dict(
+			log.info("Successful response authorization.", extra=dict(
 					grant = valid.result,
 					predicate = repr(valid.predicate) if valid.predicate else None,
 					path = str(valid.path) if valid.path else None,
