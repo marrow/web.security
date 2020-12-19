@@ -105,6 +105,14 @@ class WebApplicationFirewallExtension:
 		
 		return inner
 	
+	def prepare(self, context: Context) -> None:
+		"""Armor the base extension against maliciously formed requests."""
+		
+		try:
+			Request(context.environ)  # Requests are singletons, so BaseExtension later won't do more work.
+		except Exception as e:
+			raise HTTPClose(f"Encountered error de-serializing the request: {e!r}")
+	
 	def start(self, context: Context) -> None:
 		"""Executed during application startup just after binding the server.
 		
@@ -113,7 +121,7 @@ class WebApplicationFirewallExtension:
 		Any of the actions you wanted to perform during `__init__` you should do here.
 		"""
 		...
- 	
+	
 	def stop(self, context: Context) -> None:
 		"""Executed during application shutdown after the last request has been served.
 		
