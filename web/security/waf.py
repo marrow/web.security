@@ -1,12 +1,13 @@
 """Web Application Firewall extension support for the WebCore web framework."""
 
+from logging import getLogger as log
 from re import compile as re
 
 from typeguard import check_argument_types
 from uri import URI
 
-from ...core.typing import Any, Dict, Union, Callable, Path, Set, Pattern, Iterable, Optional
-from ...core.typing import WSGIEnvironment
+from web.core.typing import Any, Dict, Union, Callable, Path, Set, Pattern, Iterable, Optional
+from web.core.typing import WSGIEnvironment
 from .util import DNS
 from .exc import HTTPClose
 
@@ -20,7 +21,12 @@ class WAFHeuristic:
 		`HTTPClose` exception; on compliant HTTP servers, this will immediately terminate the connection and is the
 		lowest-overhead option to limit the impact of abuse.
 		"""
-		...
+		
+		raise NotImplementedError()
+	
+	def __repr__(self, *extra) -> str:
+		"""Programmer's representation."""
+		return f"{self.__class__.__module__}.{self.__class__.__qualname__}({', '.join(extra)})"
 
 
 class ClientDNSHeuristic(WAFHeuristic):
