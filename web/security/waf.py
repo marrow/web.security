@@ -53,7 +53,7 @@ class ClientDNSHeuristic(WAFHeuristic):
 	origin: str  # The WSGI environment variable to source the requesting client's IP address from.
 	required: bool  # Is valid reverse DNS resolution required to permit a connection?
 	
-	def __init__(self, domains:Iterable[str]=(), origin:str='REMOTE_ADDR', required:bool=False):
+	def __init__(self, domains:Iterable[str]=(), origin:str='REMOTE_ADDR', required:bool=False) -> None:
 		"""Prevent additional heuristic processing if the requesting client's resolved DNS name ends in a given suffix.
 		
 		May optionally specify the name of a WSGI environment variable or HTTP header to use as an alternate "trusted
