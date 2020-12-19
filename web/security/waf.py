@@ -222,3 +222,33 @@ class HostingCombinedHeuristic(PathHeuristic):
 				'admin', 'mysql', 'phpMyAdmin', 'pma', 'dbadmin', 'MyAdmin', 'phppgadmin',  # Common administrative access.
 				'crossdomain.xml', 'README', 'LICENSE', 'webdav', re(r'w00tw00t'),  # Generic probes.
 			)
+
+
+class GeoCountryHeuristic(WAFHeuristic):
+	"""A rule which preemptively blocks attempted access from specific countries of origin.
+	
+	Example usage:
+	
+		GeoCountryHeuristic(
+				'cn', 'kp',  # China, take that, "Great Firewall", and North Korea.
+				'ae', 'ir', 'iq', 'sa',  # Middle-eastern states.
+				'by', 'ru', 'ua',  # Russia and nearby former states.
+				'am', 'az', 'ee', 'ge', 'kg', 'kz', 'lt', 'lv', 'md', 'tj', 'tm', 'uz',  # Additional former states.
+			)
+	"""
+	
+	countries: Set[str]  # The set of blocked ISO 3166 country codes.
+	
+	def __init__(self, *countries:str) -> None:
+		assert check_argument_types()
+		
+		self.countries = set(countries)
+	
+	def __repr__(self, *extra:str) -> str:
+		countries = "'" + "', '".join(sorted(self.countries)) + "'"
+		return super().__repr__(countries, *extra)
+	
+	def __call__(self, environ:dict, uri:URI) -> None:
+		assert check_argument_types()
+		
+		...
