@@ -12,11 +12,14 @@ See also:
 
 from html import escape
 from re import compile as re
+from socket import inet_aton
 
 from typeguard import check_argument_types
 from uri import URI
+from webob import Request
 
-from web.core.typing import Any, Dict, Union, Callable, ClassVar, Path, Set, Pattern, Iterable, MutableSet, Optional
+from web.core.typing import Any, Union, Callable, ClassVar, Iterable, Optional
+from web.core.typing import Dict, Path, Set, Pattern, MutableSet
 from web.core.typing import Context, WSGI, WSGIEnvironment, WSGIStartResponse, Request, Response, Tags
 from web.core.context import Context
 from web.security.waf import WAFHeuristic
@@ -56,8 +59,12 @@ class WebApplicationFirewallExtension:
 		super().__init__()
 		
 		self.heuristics = heuristics
-		self.blacklist = set() if blacklist is None else blacklist  # Permit custom backing stores to be passed in.
-		self.exempt = set() if exempt is None else exempt  # Permit custom backing stores to be passed in.
+		
+		# Permit custom backing stores to be passed in; we optimize by storing packed binary values, not strings.
+		self.blacklist = set() if blacklist is None else set(inet_aton(i) for i in blacklist)
+		
+		# Permit custom backing stores to be passed in.
+		self.exempt = set() if exempt is None else exempt
 	
 	def __call__(self, context:Context, app:WSGI) -> WSGI:
 		"""Wrap the WSGI application callable in our 'web application firewall'."""
@@ -67,7 +74,11 @@ class WebApplicationFirewallExtension:
 		def inner(environ:WSGIEnvironment, start_response:WSGIStartResponse):
 			# Identify the remote user.
 			
-			request: Request = Request(environ)
+			try:
+				request: Request = Request(environ)
+			except Exception as e:  # Protect against de-serialization errors.
+				return HTTPClose(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
+			
 			uri: URI = URI(request.url)
 			
 			# https://docs.pylonsproject.org/projects/webob/en/stable/api/request.html#webob.request.BaseRequest.client_addr
@@ -76,7 +87,7 @@ class WebApplicationFirewallExtension:
 			
 			try:
 				# Immediately reject known bad actors.
-				if request.client_addr in self.blacklist:
+				if inet_aton(request.client_addr) in self.blacklist:
 					return HTTPClose()(environ, start_response)  # No need to re-blacklist.
 				
 				# Validate the heuristic rules.
@@ -88,13 +99,13 @@ class WebApplicationFirewallExtension:
 						raise
 				
 				# Invoke the wrapped application if everything seems OK.  Note that this pattern of wrapping permits
-				# your application to raise HTTPClose if wishing to blacklist the active connection.
+				# your application to raise HTTPClose if wishing to blacklist the active connection for any reason.
 				return app(environ, start_response)
 			
 			except HTTPClose as e:
 				if request.client_addr not in self.exempt:
 					log.warning(f"Blacklisting: {request.client_addr}")
-					self.blacklist.add(request.client_addr)
+					self.blacklist.add(inet_aton(request.client_addr))
 				
 				if not __debug__: e = HTTPClose()  # Do not disclose the reason in production environments.
 				elif ': ' in e.args[0]:  # XXX: Not currently effective.
@@ -104,14 +115,6 @@ class WebApplicationFirewallExtension:
 				return e(environ, start_response)
 		
 		return inner
-	
-	def prepare(self, context: Context) -> None:
-		"""Armor the base extension against maliciously formed requests."""
-		
-		try:
-			Request(context.environ)  # Requests are singletons, so BaseExtension later won't do more work.
-		except Exception as e:
-			raise HTTPClose(f"Encountered error de-serializing the request: {e!r}")
 	
 	def start(self, context: Context) -> None:
 		"""Executed during application startup just after binding the server.
@@ -138,14 +141,14 @@ class WebApplicationFirewallExtension:
 		"""
 		...
 	
-	def status(self, context: Context) -> None:
+	def status(self, context: Context) -> Generator[str, None, None]:
 		"""Report on the current status of the Web Application Firewall."""
 		
 		def plural(quantity, single, plural):
 			return single if quantity == 1 else plural
 		
 		c = len(self.heuristics)
-		yield f"**Rules:** {c} {plural(c, 'entry', 'entries')}"
+		yield f"Rules: {c} {plural(c, 'entry', 'entries')}"
 		
 		c = len(self.blacklist)
-		yield f"**Blacklist:** {c} {plural(c, 'entry', 'entries')}"
+		yield f"Blacklist: {c} {plural(c, 'entry', 'entries')}"
