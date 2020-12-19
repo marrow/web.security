@@ -150,7 +150,7 @@ class PathHeuristic(WAFHeuristic):
 	pattern:Optional[Pattern] = None  # The compiled singular regular expression for rejection matching.
 	sensitive:bool  # Indicating if the comparison is performed case-sensitively or not.
 	
-	def __init__(self, *patterns:Iterable[Union[str,Pattern]], *, sensitive=True):
+	def __init__(self, *patterns:Union[str,Pattern], sensitive:bool=True) -> None:
 		assert check_argument_types()
 		
 		self.forbidden = set(str(i) for i in patterns if not isinstance(i, Pattern))
