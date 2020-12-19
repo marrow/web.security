@@ -159,6 +159,7 @@ class PathHeuristic(WAFHeuristic):
 		if patterns:  # For efficiency, we only want one regex. Even better is to avoid them.
 			# Construct a suitable singular regular expression from multiple expression fragments.
 			self.pattern = re(f'({")|(".join(i.pattern for i in patterns)})')
+			if __debug__: self.patterns = patterns
 		
 		self.sensitive = sensitive
 	
@@ -174,10 +175,15 @@ class PathHeuristic(WAFHeuristic):
 		assert check_argument_types()
 		
 		if self.forbidden & set(uri.path.parts):  # This is ~a third faster than the simplest regex use.
-			raise HTTPClose()
+			raise HTTPClose(f"Matched: {self.forbidden & set(uri.path.parts)}")
 		
 		if self.pattern and self.pattern.search(str(uri)):  # The slower choice below a complexity threshold.
-			raise HTTPClose()
+			if __debug__:
+				for pattern in self.patterns:
+					if pattern.search(str(uri)):
+						raise HTTPClose("Matched regular expression pattern: " + pattern.pattern)
+			
+			raise HTTPClose("Matched regular expression pattern.")
 
 
 class PHPHeuristic(PathHeuristic):
