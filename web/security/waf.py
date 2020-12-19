@@ -62,6 +62,8 @@ class ClientDNSHeuristic(WAFHeuristic):
 		validation) must succeed or the client will be rejected, regardless of whitelist presence.
 		"""
 		
+		assert check_argument_types()
+		
 		self.domains = domains
 		self.origin = f'HTTP_{origin.upper().replace('-', '_')}' if '-' in origin else origin.upper()
 		self.required = required
@@ -69,6 +71,8 @@ class ClientDNSHeuristic(WAFHeuristic):
 		self._log = log(f'{__name__}:ClientDNSHeuristic')
 		
 	def __call__(self, environ:WSGIEnvironment, uri:URI) -> Optional[bool]:
+		assert check_argument_types()
+		
 		addr:str = environ.get(self.origin, '')  # Attempt to retrieve the client IP from the WSGI environment.
 		
 		if not addr:  # Client IP address discovery failed, this is generally not OK.
