@@ -101,10 +101,9 @@ class ClientDNSHeuristic(WAFHeuristic):
 			self._log.warn("Reverse DNS lookup failed.", extra={'ip': addr})
 			return
 		
-		# Ensure the IP address forward-resolves for the reverse name given.
-		permitted = DNS.forward(host)
+		permitted = DNS.forward(host)  # Attempt forward DNS lookup of valid IP addresses associated with this name.
 		
-		if addr not in permitted:
+		if addr not in permitted:  # Ensure the IP address forward-resolves for the reverse name given.
 			self._log.critical(f'Connection from {addr}, {permitted!r} permitted for reverse DNS name "{host}".',
 					extra={'ip': addr, 'permitted': permitted, 'host': host})
 			raise HTTPClose("Spoofed IP address or invalid reverse DNS information, see log for details.")
