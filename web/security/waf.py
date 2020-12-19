@@ -204,3 +204,21 @@ class WordpressHeuristic(PathHeuristic):
 	
 	def __init__(self) -> None:
 		super().__init__('wordpress', 'wp', 'wp-admin', 'wp-includes', 'wlwmanifest.xml', 'xmlrpc.php')
+
+
+class HostingCombinedHeuristic(PathHeuristic):
+	"""A combined set of suspicious URI fragments and general patterns matching commonly exploited tools.
+	
+	This is the result of casually browsing through around ten years of error logs on an active hosting service.
+	"""
+	
+	def __init__(self) -> None:
+		super().__init__(
+				re(r'\.(html?|swf|phps?)($|/)'),  # Bare HTML files, Adobe Flash, or PHP.
+				re(r'((web)?mail)|(round|cube|roundcube)((web)?mail)?2?(-[0-9\.]+)?'),  # Webmail service, in general.
+					'wm', 'rc', 'rms', 'mss', 'mss2',  # More common webmail containers.
+				'FlexDataServices', 'amfphp', 'soapCaller.bs',  # Adobe Flex AMF and RPC services.
+				'wordpress', 'wp', 'wp-admin', 'wp-includes', 'wlwmanifest.xml',  # WordPress-related.
+				'admin', 'mysql', 'phpMyAdmin', 'pma', 'dbadmin', 'MyAdmin', 'phppgadmin',  # Common administrative access.
+				'crossdomain.xml', 'README', 'LICENSE', 'webdav', re(r'w00tw00t'),  # Generic probes.
+			)
