@@ -69,7 +69,15 @@ class ClientDNSHeuristic(WAFHeuristic):
 		self.required = required
 		
 		self._log = log(f'{__name__}:ClientDNSHeuristic')
-		
+	
+	def __repr__(self, *extra:str) -> str:
+		return super().__repr__(
+				f"domains={self.domains!r}",
+				f"origin={self.origin!r}",
+				f"required={self.required!r}",
+				*extra
+			)
+	
 	def __call__(self, environ:WSGIEnvironment, uri:URI) -> Optional[bool]:
 		assert check_argument_types()
 		
@@ -153,6 +161,14 @@ class PathHeuristic(WAFHeuristic):
 			self.pattern = re(f'({")|(".join(i.pattern for i in patterns)})')
 		
 		self.sensitive = sensitive
+	
+	def __repr__(self, *extra:str) -> str:
+		return super().__repr__(
+				f"forbidden={self.forbidden!r}",
+				f"pattern={self.pattern.pattern!r}",
+				f"sensitive={self.sensitive!r}",
+				*extra
+			)
 	
 	def __call__(self, environ:dict, uri:URI) -> None:
 		assert check_argument_types()
