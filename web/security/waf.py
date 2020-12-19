@@ -65,7 +65,7 @@ class ClientDNSHeuristic(WAFHeuristic):
 		assert check_argument_types()
 		
 		self.domains = domains
-		self.origin = f'HTTP_{origin.upper().replace('-', '_')}' if '-' in origin else origin.upper()
+		self.origin = f'HTTP_{origin.upper().replace("-", "_")}'
 		self.required = required
 		
 		self._log = log(f'{__name__}:ClientDNSHeuristic')
