@@ -231,8 +231,8 @@ class GeoCountryHeuristic(WAFHeuristic):
 	
 		GeoCountryHeuristic(
 				'cn', 'kp',  # China, take that, "Great Firewall", and North Korea.
-				'ae', 'ir', 'iq', 'sa',  # Middle-eastern states.
-				'by', 'ru', 'ua',  # Russia and nearby former states.
+				'ae', 'ir', 'iq', 'sa',  # Middle-eastern nations.
+				'by', 'ru', 'ua',  # Russia and nearby former bloc states.
 				'am', 'az', 'ee', 'ge', 'kg', 'kz', 'lt', 'lv', 'md', 'tj', 'tm', 'uz',  # Additional former states.
 			)
 	"""
