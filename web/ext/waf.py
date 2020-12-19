@@ -10,15 +10,23 @@ See also:
 * https://www.cloudflare.com/en-ca/waf/
 """
 
+from html import escape
 from re import compile as re
 
 from typeguard import check_argument_types
 from uri import URI
 
-from ...core.typing import Any, Dict, Union, Callable, Path, Set, Pattern, Iterable, MutableSet
-from ...core.typing import Context, WSGI, WSGIEnvironment, WSGIStartResponse, Request, Response, Tags
-from ...core.context import Context
-from ..security.waf import WAFHeuristic
+from web.core.typing import Any, Dict, Union, Callable, ClassVar, Path, Set, Pattern, Iterable, MutableSet, Optional
+from web.core.typing import Context, WSGI, WSGIEnvironment, WSGIStartResponse, Request, Response, Tags
+from web.core.context import Context
+from web.security.waf import WAFHeuristic
+from web.security.exc import HTTPClose
+
+
+log = __import__('logging').getLogger(__name__)  # A standard logger object.
+
+
+ClientSet = MutableSet[str]
 
 
 class WebApplicationFirewallExtension:
@@ -27,15 +35,15 @@ class WebApplicationFirewallExtension:
 	WIP.
 	"""
 	
-	provides:Tags = {'waf'}  # A set of keywords usable in `uses` and `needs` declarations.
-	first:bool = True  # Always try to be first: if truthy, become a dependency for all non-first extensions.
-	before:Tags = {'debugger', 'request'}  # This extension /really/ means to be first.
-	extensions:Tags = {'waf.rule'}  # A set of entry_point namespaces to search for related plugin registrations.
+	provides:ClassVar[Tags] = {'waf'}  # A set of keywords usable in `uses` and `needs` declarations.
+	first:ClassVar[bool] = True  # Always try to be first: if truthy, become a dependency for all non-first extensions.
+	extensions:ClassVar[Tags] = {'waf.rule'}  # A set of entry_point namespaces to search for related plugin registrations.
 	
 	heuristics:Iterable[WAFHeuristic]  # The prepared heuristic instances.
-	blacklist:MutableSet[str]  # The current blacklist. Can theoretically be swapped for any mutable set-like object.
+	blacklist:ClientSet  # The current blacklist. Can theoretically be swapped for any mutable set-like object.
+	exempt:ClientSet  # IP addresses exempt from blacklisting.
 	
-	def __init__(self, *heuristics:Iterable[WAFHeuristic], **config) -> None:
+	def __init__(self, *heuristics, blacklist:Optional[ClientSet]=None, exempt:Optional[ClientSet]=None) -> None:
 		"""Executed to configure the extension.
 		
 		No actions must be performed here, only configuration management.
@@ -48,7 +56,8 @@ class WebApplicationFirewallExtension:
 		super().__init__()
 		
 		self.heuristics = heuristics
-		self.blacklist = set()
+		self.blacklist = set() if blacklist is None else blacklist  # Permit custom backing stores to be passed in.
+		self.exempt = set() if exempt is None else exempt  # Permit custom backing stores to be passed in.
 	
 	def __call__(self, context:Context, app:WSGI) -> WSGI:
 		"""Wrap the WSGI application callable in our 'web application firewall'."""
@@ -59,8 +68,8 @@ class WebApplicationFirewallExtension:
 			# Identify the remote user.
 			
 			request: Request = Request(environ)
-			uri: URI = URI(environ.url)
-
+			uri: URI = URI(request.url)
+			
 			# https://docs.pylonsproject.org/projects/webob/en/stable/api/request.html#webob.request.BaseRequest.client_addr
 			# Ref: https://www.nginx.com/resources/wiki/start/topics/examples/forwarded/
 			client: str = request.client_addr
@@ -68,18 +77,30 @@ class WebApplicationFirewallExtension:
 			try:
 				# Immediately reject known bad actors.
 				if request.client_addr in self.blacklist:
-					raise HTTPClose()
+					return HTTPClose()(environ, start_response)  # No need to re-blacklist.
 				
 				# Validate the heuristic rules.
 				for heuristic in self.heuristics:
-					heuristic(environ, uri)
+					try:
+						heuristic(environ, uri)
+					except HTTPClose as e:
+						log.error(f"{heuristic} {e.args[0].lower()}")
+						raise
 				
-				# Finally invoke the wrapped application if everything seems OK.  Note that this pattern of wrapping
-				# permits your application to raise HTTPClose if wishing to blacklist the active connection.
+				# Invoke the wrapped application if everything seems OK.  Note that this pattern of wrapping permits
+				# your application to raise HTTPClose if wishing to blacklist the active connection.
 				return app(environ, start_response)
 			
 			except HTTPClose as e:
-				self.blacklist.add(request.client_addr)
+				if request.client_addr not in self.exempt:
+					log.warning(f"Blacklisting: {request.client_addr}")
+					self.blacklist.add(request.client_addr)
+				
+				if not __debug__: e = HTTPClose()  # Do not disclose the reason in production environments.
+				elif ': ' in e.args[0]:  # XXX: Not currently effective.
+					left, _, right = e.args[0].partition(': ')
+					e.args = (f"<strong>{left}:</strong> <tt>{escape(right)}</tt>", )
+				
 				return e(environ, start_response)
 		
 		return inner
@@ -108,4 +129,15 @@ class WebApplicationFirewallExtension:
 		Allows your code to re-load configuration and your code should close then re-open sockets and files.
 		"""
 		...
-
+	
+	def status(self, context: Context) -> None:
+		"""Report on the current status of the Web Application Firewall."""
+		
+		def plural(quantity, single, plural):
+			return single if quantity == 1 else plural
+		
+		c = len(self.heuristics)
+		yield f"**Rules:** {c} {plural(c, 'entry', 'entries')}"
+		
+		c = len(self.blacklist)
+		yield f"**Blacklist:** {c} {plural(c, 'entry', 'entries')}"
