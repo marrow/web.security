@@ -84,16 +84,9 @@ class WebApplicationFirewallExtension:
 		assert check_argument_types()
 		
 		def inner(environ:WSGIEnvironment, start_response:WSGIStartResponse):
-			# Identify the remote user.
-			
 			try:
-				# While these operations "front-load" the processing of these aspects of the request, they are cached,
-				# with the request itself acting as a singleton by storing itself within the WSGI environment.
 				request: Request = Request(environ)  # This will be remembered and re-used as a singleton later.
-				request.GET  # "Force" de-serialization of query string parameters.
-				request.POST  # "Force" de-serialization of form-encoded request bodies, when applicable.
-			except Exception as e:  # Protect against de-serialization errors.
-				return HTTPClose(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
+				uri: URI = URI(request.url)
 			
 			except Exception as e:  # Protect against de-serialization errors.
 				return HTTPBadRequest(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
