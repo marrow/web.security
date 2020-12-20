@@ -10,6 +10,7 @@ See also:
 * https://www.cloudflare.com/en-ca/waf/
 """
 
+from abc import ABCMeta, abstractmethod
 from html import escape
 from re import compile as re
 from socket import inet_aton
@@ -17,6 +18,7 @@ from socket import inet_aton
 from typeguard import check_argument_types
 from uri import URI
 from webob import Request
+from webob.exc import HTTPBadRequest
 
 from web.core.typing import Any, Union, Callable, ClassVar, Generator, Iterable, Optional
 from web.core.typing import Dict, Path, Set, Pattern, MutableSet
@@ -44,10 +46,7 @@ class PersistentClientSet(ClientSet, metaclass=ABCMeta):
 
 
 class WebApplicationFirewallExtension:
-	"""A basic rules-based Web Application Firewall implementation.
-	
-	WIP.
-	"""
+	"""A basic rules-based Web Application Firewall implementation."""
 	
 	provides:ClassVar[Tags] = {'waf'}  # A set of keywords usable in `uses` and `needs` declarations.
 	first:ClassVar[bool] = True  # Always try to be first: if truthy, become a dependency for all non-first extensions.
