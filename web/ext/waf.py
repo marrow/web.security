@@ -29,7 +29,18 @@ from web.security.exc import HTTPClose
 log = __import__('logging').getLogger(__name__)  # A standard logger object.
 
 
-ClientSet = MutableSet[str]
+ClientSet = MutableSet[bytes]
+
+class PersistentClientSet(ClientSet, metaclass=ABCMeta):
+	"""A mutable set exposing two methods for persisting and restoring its contents."""
+	
+	@abstractmethod
+	def persist(self, context:Context) -> None:
+		...
+	
+	@abstractmethod
+	def restore(self, context:Context) -> None:
+		...
 
 
 class WebApplicationFirewallExtension:
