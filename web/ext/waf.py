@@ -18,7 +18,7 @@ from typeguard import check_argument_types
 from uri import URI
 from webob import Request
 
-from web.core.typing import Any, Union, Callable, ClassVar, Iterable, Optional
+from web.core.typing import Any, Union, Callable, ClassVar, Generator, Iterable, Optional
 from web.core.typing import Dict, Path, Set, Pattern, MutableSet
 from web.core.typing import Context, WSGI, WSGIEnvironment, WSGIStartResponse, Request, Response, Tags
 from web.core.context import Context
@@ -41,6 +41,8 @@ class WebApplicationFirewallExtension:
 	provides:ClassVar[Tags] = {'waf'}  # A set of keywords usable in `uses` and `needs` declarations.
 	first:ClassVar[bool] = True  # Always try to be first: if truthy, become a dependency for all non-first extensions.
 	extensions:ClassVar[Tags] = {'waf.rule'}  # A set of entry_point namespaces to search for related plugin registrations.
+	
+	uses:ClassVar[Tags] = {'timing.prefix'}  # We want our execution time to be counted.
 	
 	heuristics:Iterable[WAFHeuristic]  # The prepared heuristic instances.
 	blacklist:ClientSet  # The current blacklist. Can theoretically be swapped for any mutable set-like object.
@@ -75,7 +77,11 @@ class WebApplicationFirewallExtension:
 			# Identify the remote user.
 			
 			try:
-				request: Request = Request(environ)
+				# While these operations "front-load" the processing of these aspects of the request, they are cached,
+				# with the request itself acting as a singleton by storing itself within the WSGI environment.
+				request: Request = Request(environ)  # This will be remembered and re-used as a singleton later.
+				request.GET  # "Force" de-serialization of query string parameters.
+				request.POST  # "Force" de-serialization of form-encoded request bodies, when applicable.
 			except Exception as e:  # Protect against de-serialization errors.
 				return HTTPClose(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
 			
