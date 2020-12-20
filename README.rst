@@ -99,6 +99,9 @@ Version 3.0
 
 * **Removed Python 2 support and version specific code.** The project has been updated to modern Python packaging standards, including modern namespace use. Modern namespaces are wholly incompatible with the previous namespacing mechanism; this project can not be simultaneously installed with any Marrow project that is Python 2 compatible.
 
+* **Added Web Application Firewall extension.** To protect your application against passive scanning attempts, access of tools for a programming language that are absolutely not present (i.e. PHP, ColdFusion, Adobe Flex, …), malicious probes, and even to restrict access by geographic location.
+
+
 Version 2.0
 -----------
 
