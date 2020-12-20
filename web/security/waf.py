@@ -13,7 +13,7 @@ from .exc import HTTPClose
 
 
 class WAFHeuristic:
-	def __call__(self, environ:WSGIEnvironment, uri:URI) -> Optional[bool]:
+	def __call__(self, environ:WSGIEnvironment, uri:URI, client:str) -> Optional[bool]:
 		"""Perform the heuristic check.
 		
 		May return True to indicate processing should stop, raise an HTTPException to propagate to the client, or may
@@ -78,7 +78,7 @@ class ClientDNSHeuristic(WAFHeuristic):
 				*extra
 			)
 	
-	def __call__(self, environ:WSGIEnvironment, uri:URI) -> Optional[bool]:
+	def __call__(self, environ:WSGIEnvironment, uri:URI, client:str) -> Optional[bool]:
 		assert check_argument_types()
 		
 		addr:str = environ.get(self.origin, '')  # Attempt to retrieve the client IP from the WSGI environment.
@@ -170,7 +170,7 @@ class PathHeuristic(WAFHeuristic):
 				*extra
 			)
 	
-	def __call__(self, environ:dict, uri:URI) -> None:
+	def __call__(self, environ:dict, uri:URI, client:str) -> None:
 		assert check_argument_types()
 		
 		if self.forbidden & set(uri.path.parts):  # This is ~a third faster than the simplest regex use.
@@ -248,7 +248,7 @@ class GeoCountryHeuristic(WAFHeuristic):
 		countries = "'" + "', '".join(sorted(self.countries)) + "'"
 		return super().__repr__(countries, *extra)
 	
-	def __call__(self, environ:dict, uri:URI) -> None:
+	def __call__(self, environ:dict, uri:URI, client:str) -> None:
 		assert check_argument_types()
 		
 		...
