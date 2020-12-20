@@ -11,6 +11,11 @@ from web.core.typing import WSGIEnvironment
 from .util import DNS
 from .exc import HTTPClose
 
+try:
+	from IP2Location import IP2Location
+except ImportError:
+	IP2Location = None
+
 
 class WAFHeuristic:
 	def __call__(self, environ:WSGIEnvironment, uri:URI, client:str) -> Optional[bool]:
@@ -238,11 +243,18 @@ class GeoCountryHeuristic(WAFHeuristic):
 	"""
 	
 	countries: Set[str]  # The set of blocked ISO 3166 country codes.
+	resolver: IP2Location
 	
-	def __init__(self, *countries:str) -> None:
+	def __init__(self, *countries:str, db:str='IP2LOCATION-LITE-DB1.IPV6.BIN') -> None:
+		"""Initialize the country heuristic's geographic database and blacklist."""
+		
 		assert check_argument_types()
 		
-		self.countries = set(countries)
+		if IP2Location is None:
+			raise ImportError("You must have the IP2Location library installed.")
+		
+		self.countries = {i.upper() for i in countries}
+		self.resolver = IP2Location(db)
 	
 	def __repr__(self, *extra:str) -> str:
 		countries = "'" + "', '".join(sorted(self.countries)) + "'"
