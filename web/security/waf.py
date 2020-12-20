@@ -281,7 +281,5 @@ class GeoCountryHeuristic(WAFHeuristic):
 	def __call__(self, environ:dict, uri:URI, client:str) -> None:
 		assert check_argument_types()
 		
-		rec = self.resolver.get_country_short(client)
-		
-		if rec in self.countries:
+		if self.resolver.get_country_short(client) in self.countries:
 			raise HTTPClose(f"Access from {self.resolver.get_country_long(client)} forbidden.")
