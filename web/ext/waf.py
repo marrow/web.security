@@ -48,11 +48,10 @@ class PersistentClientSet(ClientSet, metaclass=ABCMeta):
 class WebApplicationFirewallExtension:
 	"""A basic rules-based Web Application Firewall implementation."""
 	
+	uses:ClassVar[Tags] = {'timing.prefix'}  # We want our execution time to be counted.
 	provides:ClassVar[Tags] = {'waf'}  # A set of keywords usable in `uses` and `needs` declarations.
 	first:ClassVar[bool] = True  # Always try to be first: if truthy, become a dependency for all non-first extensions.
 	extensions:ClassVar[Tags] = {'waf.rule'}  # A set of entry_point namespaces to search for related plugin registrations.
-	
-	uses:ClassVar[Tags] = {'timing.prefix'}  # We want our execution time to be counted.
 	
 	heuristics:Iterable[WAFHeuristic]  # The prepared heuristic instances.
 	blacklist:ClientSet  # The current blacklist. Can theoretically be swapped for any mutable set-like object.
@@ -87,6 +86,7 @@ class WebApplicationFirewallExtension:
 			try:
 				request: Request = Request(environ)  # This will be remembered and re-used as a singleton later.
 				uri: URI = URI(request.url)
+				request.GET  # As will this "attempt to access query string parameters", malformation detection.
 			
 			except Exception as e:  # Protect against de-serialization errors.
 				return HTTPBadRequest(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
@@ -103,7 +103,7 @@ class WebApplicationFirewallExtension:
 				# Validate the heuristic rules.
 				for heuristic in self.heuristics:
 					try:
-						heuristic(environ, uri)
+						heuristic(environ, uri, client)
 					except HTTPClose as e:
 						log.error(f"{heuristic} {e.args[0].lower()}")
 						raise
