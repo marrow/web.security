@@ -80,9 +80,10 @@ setup(
 		],
 	
 	extras_require = dict(
-			development = tests_require + ['pre-commit'],
-			ecdsa = ['ecdsa'],
-			fastecdsa = ['fastecdsa>=1.0.3'],
+			development = tests_require + ['pre-commit', 'bandit', 'e', 'pudb', 'ptipython'],
+			ecdsa = ['fastecdsa>=1.0.3'],
+			fastecdsa = ['fastecdsa>=1.0.3'],  # Deprecated reference.
+			geo = ['IP2Location'],
 		),
 	
 	tests_require = tests_require,

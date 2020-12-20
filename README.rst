@@ -68,6 +68,27 @@ and submit a pull request.  This process is beyond the scope of this documentati
 `GitHub's documentation <http://help.github.com/>`_.
 
 
+Installation "Use" Flags
+------------------------
+
+Several `extras_require` dependencies are declared, for bundled installation of tools required for additional features
+that are not required for basic usage. To utilize these flags, on any reference to the project or on-disk project
+location when executing `pip install`, add the flags comma-separated within square brackets after the name or path:
+
+    pip install -U -e '.[development,geographic]'
+
+Quoting will be required in most shells, as square brackets would ordinarily be "expanded".
+
+* `development` — Install a standard suite of development-time support packages, testing framework, and testing components.
+
+* `ecdsa` — Require an efficient ECDSA implementation for use of Elliptic Curve signing operations.
+
+* `geo` — This project utilizes IP2Location LITE data available from http://www.ip2location.com to blacklist users by
+  country of origin. Enabling this flag will install the official `IP2Location` library, however the actual dataset
+  will need to be downloaded separately.
+
+
+
 Version History
 ===============
 
