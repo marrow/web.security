@@ -76,7 +76,7 @@ class WebApplicationFirewallExtension:
 		# Permit custom backing stores to be passed in; we optimize by storing packed binary values, not strings.
 		self.blacklist = set() if blacklist is None else set(inet_aton(i) for i in blacklist)
 		
-		# Permit custom backing stores to be passed in.
+		# Permit custom backing stores to be passed in for the exemptions, as well.
 		self.exempt = set() if exempt is None else exempt
 	
 	def __call__(self, context:Context, app:WSGI) -> WSGI:
@@ -96,7 +96,8 @@ class WebApplicationFirewallExtension:
 			except Exception as e:  # Protect against de-serialization errors.
 				return HTTPClose(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
 			
-			uri: URI = URI(request.url)
+			except Exception as e:  # Protect against de-serialization errors.
+				return HTTPBadRequest(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
 			
 			# https://docs.pylonsproject.org/projects/webob/en/stable/api/request.html#webob.request.BaseRequest.client_addr
 			# Ref: https://www.nginx.com/resources/wiki/start/topics/examples/forwarded/
@@ -140,23 +141,32 @@ class WebApplicationFirewallExtension:
 		
 		Any of the actions you wanted to perform during `__init__` you should do here.
 		"""
-		...
+		
+		# Permit the storage objects to resume from a saved state.
+		if hasattr(self.blacklist, 'restore'): self.blacklist.restore(context)
+		if hasattr(self.exempt, 'restore'): self.exempt.restore(context)
 	
 	def stop(self, context: Context) -> None:
 		"""Executed during application shutdown after the last request has been served.
 		
 		The first argument is the global context class, not request-local context instance.
 		"""
-		...
+		
+		# As per startup, permit the storage objects to persist their state.
+		if hasattr(self.blacklist, 'persist'): self.blacklist.persist(context)
+		if hasattr(self.exempt, 'persist'): self.exempt.persist(context)
 	
-	def graceful(self, context: Context, **config) -> None:
+	def graceful(self, context: Context) -> None:
 		"""Called when a SIGHUP is sent to the application.
 		
 		The first argument is the global context class, not request-local context instance.
 		
 		Allows your code to re-load configuration and your code should close then re-open sockets and files.
 		"""
-		...
+		
+		# Ask the storage object to persist its state, if able.
+		if hasattr(self.blacklist, 'persist'): self.blacklist.persist(context)
+		if hasattr(self.exempt, 'persist'): self.exempt.persist(context)
 	
 	def status(self, context: Context) -> Generator[str, None, None]:
 		"""Report on the current status of the Web Application Firewall."""
