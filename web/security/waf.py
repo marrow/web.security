@@ -254,7 +254,7 @@ class GeoCountryHeuristic(WAFHeuristic):
 	
 		GeoCountryHeuristic(
 				'cn', 'kp',  # China, take that, "Great Firewall", and North Korea.
-				'ae', 'ir', 'iq', 'sa',  # Middle-eastern nations.
+				'ae', 'ir', 'iq', 'sa', 'tr',  # Middle-eastern nations.
 				'by', 'ru', 'ua',  # Russia and nearby former bloc states.
 				'am', 'az', 'ee', 'ge', 'kg', 'kz', 'lt', 'lv', 'md', 'tj', 'tm', 'uz',  # Additional former states.
 			)
@@ -281,5 +281,5 @@ class GeoCountryHeuristic(WAFHeuristic):
 	def __call__(self, environ:dict, uri:URI, client:str) -> None:
 		assert check_argument_types()
 		
-		if self.resolver.get_country_short(client) in self.countries:
-			raise HTTPClose(f"Access from {self.resolver.get_country_long(client)} forbidden.")
+		if (short := self.resolver.get_country_short(client)) in self.countries:
+			raise HTTPClose(f"Access from {short} ({self.resolver.get_country_long(client)}) forbidden.")
