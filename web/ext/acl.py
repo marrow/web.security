@@ -249,7 +249,7 @@ class ACLExtension:
 	def prepare(self, context):
 		"""Called to prepare the request context by adding an `acl` attribute."""
 		
-		if __debug__: log.debug("Populating request context with ACL.", extra=dict(request=id(context)))
+		if __debug__: log.trace("Populating request context with ACL.", extra=context.extra)
 		
 		context.acl = ACL(context=context, policy=self.policy)
 	
@@ -262,24 +262,24 @@ class ACLExtension:
 		acl = getattr(crumb.handler, '__acl__', ())
 		inherit = getattr(crumb.handler, '__acl_inherit__', True)
 		
-		if __debug__: log.debug(f"Handling dispatch event: {crumb.handler!r} {acl!r}", extra=dict(
-				request = id(context),
-				consumed = crumb.path,
-				handler = safe_name(crumb.handler),
-				endpoint = crumb.endpoint,
-				acl = [repr(i) for i in acl],
-				inherit = inherit,
-			))
+		if __debug__: log.trace(f"Handling dispatch event: {crumb.handler!r} {acl!r}", extra={
+				'consumed': crumb.path,
+				'handler': safe_name(crumb.handler),
+				'endpoint': crumb.endpoint,
+				'acl': [repr(i) for i in acl],
+				'inherit': inherit,
+				**context.extra
+			})
 		
 		if not inherit:
-			if __debug__: log.info("Clearing collected access control list.")
+			if __debug__: log.warn("Clearing collected access control list.")
 			del context.acl[:]
 		
 		context.acl.extend((Path(context.request.path), i, handler) for i in acl)
 	
 	def collect(self, context, handler, args, kw):
 		if not context.acl:
-			if __debug__: log.debug("Skipping validation of empty ACL.", extra=dict(request=id(context)))
+			if __debug__: log.debug("Skipping validation of empty ACL.", extra=context.extra)
 			return
 		
 		grant = context.acl.is_authorized
