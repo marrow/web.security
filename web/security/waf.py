@@ -11,9 +11,14 @@ from web.core.typing import WSGIEnvironment
 from .util import DNS
 from .exc import HTTPClose
 
+try:
+	from IP2Location import IP2Location
+except ImportError:
+	IP2Location = None
+
 
 class WAFHeuristic:
-	def __call__(self, environ:WSGIEnvironment, uri:URI) -> Optional[bool]:
+	def __call__(self, environ:WSGIEnvironment, uri:URI, client:str) -> Optional[bool]:
 		"""Perform the heuristic check.
 		
 		May return True to indicate processing should stop, raise an HTTPException to propagate to the client, or may
@@ -78,7 +83,7 @@ class ClientDNSHeuristic(WAFHeuristic):
 				*extra
 			)
 	
-	def __call__(self, environ:WSGIEnvironment, uri:URI) -> Optional[bool]:
+	def __call__(self, environ:WSGIEnvironment, uri:URI, client:str) -> Optional[bool]:
 		assert check_argument_types()
 		
 		addr:str = environ.get(self.origin, '')  # Attempt to retrieve the client IP from the WSGI environment.
@@ -139,7 +144,7 @@ class PathHeuristic(WAFHeuristic):
 	
 	One can also deny any request targeting a PHP script:
 	
-		PathHeuristic(re.compile(r'\.phps?($|/)'))
+		PathHeuristic(re.compile(r'\\.phps?($|/)'))
 	
 	It's important to note that regular expression flags (such as case insensitivity) will be ignored; the search is
 	always case sensitive.  (phpMyAdmin != phpmyadmin; these are legitimately separate resources.)
@@ -170,7 +175,7 @@ class PathHeuristic(WAFHeuristic):
 				*extra
 			)
 	
-	def __call__(self, environ:dict, uri:URI) -> None:
+	def __call__(self, environ:dict, uri:URI, client:str) -> None:
 		assert check_argument_types()
 		
 		if self.forbidden & set(uri.path.parts):  # This is ~a third faster than the simplest regex use.
@@ -209,12 +214,30 @@ class WordpressHeuristic(PathHeuristic):
 class HostingCombinedHeuristic(PathHeuristic):
 	"""A combined set of suspicious URI fragments and general patterns matching commonly exploited tools.
 	
-	This is the result of casually browsing through around ten years of error logs on an active hosting service.
+	This is the result of casually browsing through around ten years of error logs on an active hosting service and
+	combines a number of the other PathHeuristic rules into one for convenience. (The WAF already optimizes these down
+	into a single regex for runtime checking; this is an import optimization.)
+	
+	Several filename extensions which ought to be delivered by a front-end load balancer are included in this list;
+	DO NOT INCLUDE THIS HEURISTIC AT DEVELOPMENT TIME if you are delivering static content via an endpoint within your
+	application. A critical message will be emitted if used at development time.
 	"""
 	
-	def __init__(self) -> None:
+	def __init__(self, *extensions:str) -> None:
+		"""Prepare a 'combined hosting experience' heuristic.
+		
+		You can pass in additional extensions to block beyond the basic set included as stringy regular expression
+		fragments via positional arguments.
+		"""
+		
+		if __debug__:
+			log.critical("Use of this heuristic if delivering statics from the application at development time will" \
+					"likely blacklist you.")
+		
+		extensions = set(extensions) | {'html?', 'phps?', 'py', 'js', 'css', 'swf', 'txt', 'md'}
+		
 		super().__init__(
-				re(r'\.(html?|swf|phps?)($|/)'),  # Bare HTML files, Adobe Flash, or PHP.
+				re(r'\.(' + '|'.join(sorted(extensions)) + r')($|/)'),  # Forbidden filename extensions.
 				re(r'((web)?mail)|(round|cube|roundcube)((web)?mail)?2?(-[0-9\.]+)?'),  # Webmail service, in general.
 					'wm', 'rc', 'rms', 'mss', 'mss2',  # More common webmail containers.
 				'FlexDataServices', 'amfphp', 'soapCaller.bs',  # Adobe Flex AMF and RPC services.
@@ -222,3 +245,42 @@ class HostingCombinedHeuristic(PathHeuristic):
 				'admin', 'mysql', 'phpMyAdmin', 'pma', 'dbadmin', 'MyAdmin', 'phppgadmin',  # Common administrative access.
 				'crossdomain.xml', 'README', 'LICENSE', 'webdav', re(r'w00tw00t'),  # Generic probes.
 			)
+
+
+class GeoCountryHeuristic(WAFHeuristic):
+	"""A rule which preemptively blocks attempted access from specific countries of origin.
+	
+	Example usage:
+	
+		GeoCountryHeuristic(
+				'cn', 'kp',  # China, take that, "Great Firewall", and North Korea.
+				'ae', 'ir', 'iq', 'sa', 'tr',  # Middle-eastern nations.
+				'by', 'ru', 'ua',  # Russia and nearby former bloc states.
+				'am', 'az', 'ee', 'ge', 'kg', 'kz', 'lt', 'lv', 'md', 'tj', 'tm', 'uz',  # Additional former states.
+				'af', 'mr', 'ng', 'ph', 'pl', 'sd', 'ye',  # LGBTQ and human rights violators, others included above.
+			)
+	"""
+	
+	countries: Set[str]  # The set of blocked ISO 3166 country codes.
+	resolver: IP2Location
+	
+	def __init__(self, *countries:str, db:str='IP2LOCATION-LITE-DB1.IPV6.BIN') -> None:
+		"""Initialize the country heuristic's geographic database and blacklist."""
+		
+		assert check_argument_types()
+		
+		if IP2Location is None:
+			raise ImportError("You must have the IP2Location library installed.")
+		
+		self.countries = {i.upper() for i in countries}
+		self.resolver = IP2Location(db)
+	
+	def __repr__(self, *extra:str) -> str:
+		countries = "'" + "', '".join(sorted(self.countries)) + "'"
+		return super().__repr__(countries, *extra)
+	
+	def __call__(self, environ:dict, uri:URI, client:str) -> None:
+		assert check_argument_types()
+		
+		if (short := self.resolver.get_country_short(client)) in self.countries:
+			raise HTTPClose(f"Access from {short} ({self.resolver.get_country_long(client)}) forbidden.")
