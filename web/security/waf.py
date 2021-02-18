@@ -144,7 +144,7 @@ class PathHeuristic(WAFHeuristic):
 	
 	One can also deny any request targeting a PHP script:
 	
-		PathHeuristic(re.compile(r'\.phps?($|/)'))
+		PathHeuristic(re.compile(r'\\.phps?($|/)'))
 	
 	It's important to note that regular expression flags (such as case insensitivity) will be ignored; the search is
 	always case sensitive.  (phpMyAdmin != phpmyadmin; these are legitimately separate resources.)
@@ -257,6 +257,7 @@ class GeoCountryHeuristic(WAFHeuristic):
 				'ae', 'ir', 'iq', 'sa', 'tr',  # Middle-eastern nations.
 				'by', 'ru', 'ua',  # Russia and nearby former bloc states.
 				'am', 'az', 'ee', 'ge', 'kg', 'kz', 'lt', 'lv', 'md', 'tj', 'tm', 'uz',  # Additional former states.
+				'af', 'mr', 'ng', 'ph', 'pl', 'sd', 'ye',  # LGBTQ and human rights violators, others included above.
 			)
 	"""
 	
