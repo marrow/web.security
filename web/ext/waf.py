@@ -12,6 +12,7 @@ See also:
 
 from abc import ABCMeta, abstractmethod
 from html import escape
+from pathlib import Path
 from re import compile as re
 from socket import inet_aton
 
@@ -34,15 +35,46 @@ log = __import__('logging').getLogger(__name__)  # A standard logger object.
 ClientSet = MutableSet[bytes]
 
 class PersistentClientSet(ClientSet, metaclass=ABCMeta):
-	"""A mutable set exposing two methods for persisting and restoring its contents."""
+	"""An ABC describing a mutable set that exposes methods for persisting and restoring its contents."""
 	
 	@abstractmethod
 	def persist(self, context:Context) -> None:
-		...
+		"""Persist the state of the set.
+		
+		It is up to the individual implementation to decide how to do this. Typically this would involve serialization
+		on-disk or the use of some form of data store, such as SQLite, PostgreSQL, or MongoDB.
+		"""
+		
+		raise NotImplementedError()
 	
 	@abstractmethod
 	def restore(self, context:Context) -> None:
-		...
+		"""Restore the state of the set.
+		
+		It is up to the individual implementation to decide how to do this. Typically this involves deserialization
+		from disk or the use of some form of data store, such as SQLite, PostgreSQL, or MongoDB.
+		"""
+		
+		raise NotImplementedError()
+
+
+class LineSerializedSet(set, PersistentClientSet):
+	location:Path  # The target path to read and write data from/to.
+	
+	def __init__(self, *args, location:Union[str,Path]):
+		self.location = Path(location)
+	
+	def persist(self, context:Context) -> None:
+		with self.location.open('w') as fh:
+			for element in sorted(self):
+				fh.write(str(element) + "\n")
+	
+	def restore(self, context:Context) -> None:
+		self.clear()
+		
+		with self.location.open('r') as fh:
+			for line in fh.readlines():
+				self.add(int(line.strip()))
 
 
 class WebApplicationFirewallExtension:
@@ -72,7 +104,7 @@ class WebApplicationFirewallExtension:
 		self.heuristics = heuristics
 		
 		# Permit custom backing stores to be passed in; we optimize by storing packed binary values, not strings.
-		self.blacklist = set() if blacklist is None else set(inet_aton(i) for i in blacklist)
+		self.blacklist = set() if blacklist is None else blacklist.__class__(inet_aton(i) for i in blacklist)
 		
 		# Permit custom backing stores to be passed in for the exemptions, as well.
 		self.exempt = set() if exempt is None else exempt
