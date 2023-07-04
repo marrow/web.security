@@ -102,5 +102,13 @@ setup(
 					'matches = web.security.predicate:ContextMatch',
 					'contains = web.security.predicate:ContextContains',
 				],
+			'web.security.heuristic': [
+					'dns = web.security.waf:ClientDNSHeuristic',
+					'path = web.security.waf:PathHeuristic',
+					'php = web.security.waf:PHPHeuristic',
+					'wordpress = web.security.waf:WordpressHeuristic',
+					'hosting = web.security.waf:HostingCombinedHeuristic',
+					'country = web.security.waf:GeoCountryHeuristic',
+				]
 		},
 )
