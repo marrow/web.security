@@ -301,6 +301,8 @@ class ACLExtension:
 					source = safe_name(grant.source) if grant.source else None
 				))
 	
+	mutate = collect
+	
 	def transform(self, context, handler, result):
 		try:
 			acl = result.__acl__
