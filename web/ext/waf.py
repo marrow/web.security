@@ -12,8 +12,9 @@ See also:
 
 from abc import ABCMeta, abstractmethod
 from html import escape
+from ipaddress import ip_address
 from re import compile as re
-from socket import inet_aton
+from socket import socket, AF_INET, SOCK_DGRAM
 
 from typeguard import check_argument_types
 from uri import URI
@@ -30,8 +31,8 @@ from web.security.exc import HTTPClose
 
 log = __import__('logging').getLogger(__name__)  # A standard logger object.
 
-
-ClientSet = MutableSet[bytes]
+Remotes = Set[str]
+ClientSet = MutableSet[int]
 
 class PersistentClientSet(ClientSet, metaclass=ABCMeta):
 	"""A mutable set exposing two methods for persisting and restoring its contents."""
@@ -45,6 +46,26 @@ class PersistentClientSet(ClientSet, metaclass=ABCMeta):
 		...
 
 
+class MongoDBPersistentClientSet(PersistentClientSet):
+	"""Store blacklists as MongoDB records."""
+	
+	def persist(self, context:Context) -> None:
+		pass
+	
+	def restore(self, context:Context) -> None:
+		self.clear()
+		self.update()
+
+
+def current_ip(self):
+	s = socket(AF_INET, SOCK_DGRAM)
+	s.connect(("8.8.8.8", 80))
+	default_route = s.getsockname()[0]
+	s.close()
+	
+	return default_route
+
+
 class WebApplicationFirewallExtension:
 	"""A basic rules-based Web Application Firewall implementation."""
 	
@@ -56,9 +77,10 @@ class WebApplicationFirewallExtension:
 	
 	heuristics:Iterable[WAFHeuristic]  # The prepared heuristic instances.
 	blacklist:ClientSet  # The current blacklist. Can theoretically be swapped for any mutable set-like object.
-	exempt:ClientSet  # IP addresses exempt from blacklisting.
+	exempt:ClientSet  # IP addresses exempt from blacklisting. Defaults to 127.0.0.1 and the IP of default interface.
 	
-	def __init__(self, *heuristics, blacklist:Optional[ClientSet]=None, exempt:Optional[ClientSet]=None) -> None:
+	def __init__(self, *heuristics, blacklist:Optional[Remotes]=None,
+				exempt:Optional[Remotes]={'127.0.0.1', current_ip()}) -> None:
 		"""Executed to configure the extension.
 		
 		No actions must be performed here, only configuration management.
@@ -73,10 +95,10 @@ class WebApplicationFirewallExtension:
 		self.heuristics = heuristics
 		
 		# Permit custom backing stores to be passed in; we optimize by storing packed binary values, not strings.
-		self.blacklist = set() if blacklist is None else set(inet_aton(i) for i in blacklist)
+		self.blacklist = set(int(ip_address(i)) for i in blacklist) if blacklist else set()
 		
 		# Permit custom backing stores to be passed in for the exemptions, as well.
-		self.exempt = set() if exempt is None else exempt
+		self.exempt = set(int(ip_address(i)) for i in exempt) if exempt else set()
 	
 	def __call__(self, context:Context, app:WSGI) -> WSGI:
 		"""Wrap the WSGI application callable in our 'web application firewall'."""
@@ -87,17 +109,17 @@ class WebApplicationFirewallExtension:
 			try:
 				request: Request = Request(environ)  # This will be remembered and re-used as a singleton later.
 				uri: URI = URI(request.url)
+				client: int = int(ip_address(request.client_addr))
+				
+				# https://docs.pylonsproject.org/projects/webob/en/stable/api/request.html#webob.request.BaseRequest.client_addr
+				# Ref: https://www.nginx.com/resources/wiki/start/topics/examples/forwarded/
 			
 			except Exception as e:  # Protect against de-serialization errors.
 				return HTTPBadRequest(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
 			
-			# https://docs.pylonsproject.org/projects/webob/en/stable/api/request.html#webob.request.BaseRequest.client_addr
-			# Ref: https://www.nginx.com/resources/wiki/start/topics/examples/forwarded/
-			client: str = request.client_addr
-			
 			try:
 				# Immediately reject known bad actors.
-				if inet_aton(request.client_addr) in self.blacklist:
+				if client in self.blacklist:
 					return HTTPClose()(environ, start_response)  # No need to re-blacklist.
 				
 				# Validate the heuristic rules.
@@ -115,7 +137,7 @@ class WebApplicationFirewallExtension:
 			except HTTPClose as e:
 				if request.client_addr not in self.exempt:
 					log.warning(f"Blacklisting: {request.client_addr}")
-					self.blacklist.add(inet_aton(request.client_addr))
+					self.blacklist.add(client)
 				
 				if not __debug__: e = HTTPClose()  # Do not disclose the reason in production environments.
 				elif ': ' in e.args[0]:  # XXX: Not currently effective.
@@ -171,3 +193,4 @@ class WebApplicationFirewallExtension:
 		
 		c = len(self.blacklist)
 		yield f"Blacklist: {c} {plural(c, 'entry', 'entries')}"
+
