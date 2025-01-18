@@ -13,6 +13,7 @@ See also:
 from abc import ABCMeta, abstractmethod
 from html import escape
 from ipaddress import ip_address
+from pathlib import Path
 from re import compile as re
 from socket import socket, AF_INET, SOCK_DGRAM
 
@@ -35,15 +36,46 @@ Remotes = Set[str]
 ClientSet = MutableSet[int]
 
 class PersistentClientSet(ClientSet, metaclass=ABCMeta):
-	"""A mutable set exposing two methods for persisting and restoring its contents."""
+	"""An ABC describing a mutable set that exposes methods for persisting and restoring its contents."""
 	
 	@abstractmethod
 	def persist(self, context:Context) -> None:
-		...
+		"""Persist the state of the set.
+		
+		It is up to the individual implementation to decide how to do this. Typically this would involve serialization
+		on-disk or the use of some form of data store, such as SQLite, PostgreSQL, or MongoDB.
+		"""
+		
+		raise NotImplementedError()
 	
 	@abstractmethod
 	def restore(self, context:Context) -> None:
-		...
+		"""Restore the state of the set.
+		
+		It is up to the individual implementation to decide how to do this. Typically this involves deserialization
+		from disk or the use of some form of data store, such as SQLite, PostgreSQL, or MongoDB.
+		"""
+		
+		raise NotImplementedError()
+
+
+class LineSerializedSet(set, PersistentClientSet):
+	location:Path  # The target path to read and write data from/to.
+	
+	def __init__(self, *args, location:Union[str,Path]):
+		self.location = Path(location)
+	
+	def persist(self, context:Context) -> None:
+		with self.location.open('w') as fh:
+			for element in sorted(self):
+				fh.write(str(element) + "\n")
+	
+	def restore(self, context:Context) -> None:
+		self.clear()
+		
+		with self.location.open('r') as fh:
+			for line in fh.readlines():
+				self.add(int(line.strip()))
 
 
 class MongoDBPersistentClientSet(PersistentClientSet):
@@ -69,11 +101,10 @@ def current_ip(self):
 class WebApplicationFirewallExtension:
 	"""A basic rules-based Web Application Firewall implementation."""
 	
+	uses:ClassVar[Tags] = {'timing.prefix'}  # We want our execution time to be counted.
 	provides:ClassVar[Tags] = {'waf'}  # A set of keywords usable in `uses` and `needs` declarations.
 	first:ClassVar[bool] = True  # Always try to be first: if truthy, become a dependency for all non-first extensions.
 	extensions:ClassVar[Tags] = {'waf.rule'}  # A set of entry_point namespaces to search for related plugin registrations.
-	
-	uses:ClassVar[Tags] = {'timing.prefix'}  # We want our execution time to be counted.
 	
 	heuristics:Iterable[WAFHeuristic]  # The prepared heuristic instances.
 	blacklist:ClientSet  # The current blacklist. Can theoretically be swapped for any mutable set-like object.
@@ -113,6 +144,8 @@ class WebApplicationFirewallExtension:
 				
 				# https://docs.pylonsproject.org/projects/webob/en/stable/api/request.html#webob.request.BaseRequest.client_addr
 				# Ref: https://www.nginx.com/resources/wiki/start/topics/examples/forwarded/
+
+        request.GET  # As will this "attempt to access query string parameters", malformation detection.
 			
 			except Exception as e:  # Protect against de-serialization errors.
 				return HTTPBadRequest(f"Encountered error de-serializing the request: {e!r}")(environ, start_response)
@@ -125,7 +158,7 @@ class WebApplicationFirewallExtension:
 				# Validate the heuristic rules.
 				for heuristic in self.heuristics:
 					try:
-						heuristic(environ, uri)
+						heuristic(environ, uri, client)
 					except HTTPClose as e:
 						log.error(f"{heuristic} {e.args[0].lower()}")
 						raise
