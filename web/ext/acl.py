@@ -253,23 +253,24 @@ class ACLExtension:
 		
 		context.acl = ACL(context=context, policy=self.policy)
 	
-	def dispatch(self, context, crumb):
+	def dispatch(self, context, path, handler, endpoint):
 		"""Called as dispatch descends into a tier.
 		
 		The ACL extension uses this to build up the current request's ACL.
 		"""
 		
-		acl = getattr(crumb.handler, '__acl__', ())
-		inherit = getattr(crumb.handler, '__acl_inherit__', True)
+		acl = getattr(handler, '__acl__', ())
+		inherit = getattr(handler, '__acl_inherit__', True)
 		
-		if __debug__: log.trace(f"Handling dispatch event: {crumb.handler!r} {acl!r}", extra={
-				'consumed': crumb.path,
-				'handler': safe_name(crumb.handler),
-				'endpoint': crumb.endpoint,
-				'acl': [repr(i) for i in acl],
-				'inherit': inherit,
+		if __debug__: log.debug(f"Handling dispatch event: {handler!r} {acl!r}", extra=dict(
+				request = id(context),
+				consumed = path,
+				handler = safe_name(handler),
+				endpoint = endpoint,
+				acl = [repr(i) for i in acl],
+				inherit = inherit,
 				**context.extra
-			})
+			))
 		
 		if not inherit:
 			if __debug__: log.warn("Clearing collected access control list.")
@@ -300,6 +301,8 @@ class ACLExtension:
 					path = str(grant.path) if grant.path else None,
 					source = safe_name(grant.source) if grant.source else None
 				))
+	
+	mutate = collect
 	
 	def transform(self, context, handler, result):
 		try:
